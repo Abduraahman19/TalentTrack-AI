@@ -27,36 +27,38 @@ const Dashboard = () => {
 
   const handleUploadSuccess = () => {
     setShowUpload(false);
-    setRefreshKey(prev => prev + 1); // Refresh candidate list
+    setRefreshKey(prev => prev + 1);
   };
 
   if (loading) {
-    return <div className="flex justify-center items-center h-screen">Loading...</div>;
+    return <div className="flex items-center justify-center h-screen">Loading...</div>;
   }
 
   if (!user) {
-    return null; // Redirect will happen in useEffect
+    return null;
   }
 
   return (
-    <div className="container mx-auto p-6">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold">
-          <span>Role: {user.role}</span> <br/>
-          Welcome, {user.firstName} {user.lastName}
-        </h1>
+    <div className="container p-6 mx-auto">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-2xl font-bold">
+            Welcome, {user.firstName} {user.lastName}
+          </h1>
+          <p className="text-gray-600">Role: {user.role}</p>
+        </div>
         <div className="space-x-4">
           {(user.role === 'admin' || user.role === 'recruiter') && (
             <button
               onClick={() => setShowUpload(!showUpload)}
-              className="bg-blue-600 text-white px-4 py-2 rounded"
+              className="px-4 py-2 text-white transition bg-blue-600 rounded hover:bg-blue-700"
             >
               {showUpload ? 'View Candidates' : 'Upload Resume'}
             </button>
           )}
           <button
             onClick={handleLogout}
-            className="bg-red-500 text-white px-4 py-2 rounded"
+            className="px-4 py-2 text-white transition bg-red-500 rounded hover:bg-red-600"
           >
             Logout
           </button>

@@ -13,26 +13,23 @@ exports.protect = async (req, res, next) => {
     }
 
     // Verify token
-    let decoded;
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
-    } catch (err) {
-      return res.status(401).json({ message: 'Invalid or expired token' });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // Make sure decoded contains the role
+    if (!decoded.id || !decoded.role) {
+      return res.status(401).json({ message: 'Invalid token structure' });
     }
 
-    // Find user
-    const user = await User.findById(decoded.id);
-    if (!user) {
-      return res.status(401).json({ message: 'The user belonging to this token no longer exists' });
-    }
-
-    // Only attach minimal info to req.user (avoid sending full mongoose doc)
-    req.user = { id: user._id.toString(), role: user.role };
+    // Attach user info to request
+    req.user = {
+      id: decoded.id,
+      role: decoded.role
+    };
 
     next();
   } catch (error) {
-    console.error('Auth protect error:', error);
-    return res.status(500).json({ message: 'Authentication middleware error' });
+    console.error('Auth middleware error:', error);
+    return res.status(401).json({ message: 'Invalid or expired token' });
   }
 };
 

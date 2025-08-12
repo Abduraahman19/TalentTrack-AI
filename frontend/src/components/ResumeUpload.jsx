@@ -26,21 +26,27 @@ const ResumeUpload = ({ onUploadSuccess }) => {
       const formData = new FormData();
       formData.append('resume', file);
 
-      console.log('Uploading file:', file.name, file.size, file.type);
-
       const response = await uploadResume(formData, user.token);
-      console.log('Upload successful:', response.data);
 
-      showSnackbar('Resume uploaded and parsed successfully!', 'success');
-
-      if (onUploadSuccess) {
-        onUploadSuccess(response.data);
+      if (response.error) {
+        throw new Error(response.error);
       }
 
-      setFile(null);
+      showSnackbar('Resume processed successfully!', 'success');
+      if (onUploadSuccess) onUploadSuccess(response.data);
+
     } catch (err) {
-      console.error('Upload error:', err.response?.data || err.message);
-      const errorMsg = err.response?.data?.message || err.message || 'Upload failed';
+      let errorMsg = 'Upload failed';
+
+      // Handle specific error cases
+      if (err.message.includes('parsing')) {
+        errorMsg = 'The resume format is not supported or is corrupted. Try a different file.';
+      } else if (err.message.includes('candidate data')) {
+        errorMsg = 'We couldn\'t extract enough information from this resume. Please check the content.';
+      } else if (err.response?.data?.message) {
+        errorMsg = err.response.data.message;
+      }
+
       setError(errorMsg);
       showSnackbar(errorMsg, 'error');
     } finally {
@@ -49,44 +55,39 @@ const ResumeUpload = ({ onUploadSuccess }) => {
   };
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md max-w-2xl mx-auto">
-      <h2 className="text-2xl font-bold mb-6 text-center">Upload Resume</h2>
+    <div className="max-w-2xl p-6 mx-auto bg-white rounded-lg shadow-md">
+      <h2 className="mb-6 text-2xl font-bold text-center">Upload Resume</h2>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block mb-2 text-sm font-medium text-gray-700">
             Select Resume (PDF or DOCX)
           </label>
-          <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
-            <input
-              type="file"
-              className="hidden"
-              accept=".pdf,.docx"
-              onChange={(e) => setFile(e.target.files[0])}
-            />
-            <span className="text-gray-500">Click to upload or drag and drop</span>
-          </label>
-          {file && <p className="mt-2 text-sm text-gray-600">Selected file: {file.name}</p>}
+          <input
+            type="file"
+            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            accept=".pdf,.docx"
+            onChange={(e) => setFile(e.target.files[0])}
+          />
         </div>
 
-        {error && <div className="p-3 bg-red-100 text-red-700 rounded-md">{error}</div>}
+        {error && <div className="p-3 text-red-700 bg-red-100 rounded-md">{error}</div>}
 
-        <div className="flex justify-end space-x-3 pt-2">
+        <div className="flex justify-end pt-2 space-x-3">
           <button
             type="button"
             onClick={() => navigate('/home')}
-            className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700"
+            className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
             disabled={loading}
           >
             Cancel
           </button>
           <button
             type="submit"
-            disabled={loading}
-            className={`px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 ${
-              loading ? 'opacity-70 cursor-not-allowed' : ''
-            }`}
+            disabled={loading || !file}
+            className={`px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 ${loading ? 'opacity-70 cursor-not-allowed' : ''
+              }`}
           >
-            {loading ? 'Processing...' : 'Upload Resume'}
+            {loading ? 'Uploading...' : 'Upload Resume'}
           </button>
         </div>
       </form>

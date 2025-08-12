@@ -40,21 +40,12 @@ export const uploadResume = (formData, token) => {
     headers: {
       'Content-Type': 'multipart/form-data',
       Authorization: `Bearer ${token}`
-    },
-    timeout: 30000 // 30 seconds timeout
+    }
   }).catch(error => {
     if (error.response) {
-      // The request was made and the server responded with a status code
-      console.error('Server responded with error:', error.response.data);
       throw new Error(error.response.data.message || 'Upload failed');
-    } else if (error.request) {
-      // The request was made but no response was received
-      console.error('No response received:', error.request);
-      throw new Error('No response from server. Please try again.');
     } else {
-      // Something happened in setting up the request
-      console.error('Request setup error:', error.message);
-      throw new Error('Request setup failed. Please try again.');
+      throw new Error('Network error. Please try again.');
     }
   });
 };

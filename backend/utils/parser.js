@@ -89,69 +89,42 @@ const extractEducation = (text) => {
 };
 
 const extractContactInfo = (text) => {
-  // Improved email extraction
-  const email = text.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/i)?.[0] || '';
+  // Enhanced email regex
+  const emailMatch = text.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i);
+  const email = emailMatch ? emailMatch[0] : '';
 
-  // Improved phone extraction (supports international formats)
-  const phone = text.match(/(\+?\d[\d\s-]{7,}\d)/)?.[0] || '';
+  // Enhanced phone regex (international numbers support)
+  const phoneMatch = text.match(/(\+?\d[\d\s-]{7,}\d)/);
+  const phone = phoneMatch ? phoneMatch[0].replace(/\s+/g, '') : '';
 
   return { email, phone };
 };
 
 const parseResumeText = (text) => {
-  const lines = text.split('\n').filter(line => line.trim());
+  // Ensure text is properly formatted
+  if (!text || typeof text !== 'string') {
+    throw new Error('Invalid resume text');
+  }
+
   const { email, phone } = extractContactInfo(text);
+  const lines = text.split('\n').filter(line => line.trim());
 
-  // Improved name extraction (first non-empty line that doesn't contain email or phone)
-  let name = '';
-  for (const line of lines) {
-    if (!line.includes('@') && !line.match(/(\+?\d[\d\s-]{7,}\d)/)) {
-      name = line.trim();
-      break;
-    }
-  }
-
-  // Extract experience details
-  const experience = [];
-  const expSectionRegex = /experience|work history|employment history|professional experience/i;
-  let inExpSection = false;
-
-  for (const line of lines) {
-    if (expSectionRegex.test(line)) {
-      inExpSection = true;
-      continue;
-    }
-
-    if (inExpSection) {
-      const expMatch = line.match(/(.+?)\s+at\s+(.+?)\s+\((.*?)\)/i) ||
-        line.match(/(.+?)\s*-\s*(.+?)\s*,\s*(.*)/i);
-
-      if (expMatch) {
-        experience.push({
-          jobTitle: expMatch[1].trim(),
-          company: expMatch[2].trim(),
-          duration: expMatch[3].trim(),
-          description: ''
-        });
-      }
-    }
-  }
+  // Extract name (first non-empty line without contact info)
+  let name = lines.find(line =>
+    !line.includes('@') &&
+    !line.match(/(\+?\d[\d\s-]{7,}\d)/) &&
+    line.trim().length > 0
+  )?.trim() || 'Unknown Candidate';
 
   return {
-    name: name || 'Unknown',
+    name,
     email,
     phone,
-    skills: extractSkills(text),
-    experience: experience.length > 0 ? experience : [{ // Fallback if no structured experience found
-      jobTitle: 'Unknown',
-      company: 'Unknown',
-      duration: `${extractExperience(text)} years`,
-      description: ''
-    }],
-    education: extractEducation(text)
+    skills: extractSkills(text) || [],
+    experience: extractExperience(text) || [],
+    education: extractEducation(text) || []
   };
 };
-
 module.exports = {
   parsePDF: async (buffer) => {
     try {

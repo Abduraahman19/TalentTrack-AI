@@ -46,11 +46,13 @@ exports.register = async (req, res) => {
 
     // Create token
     const token = jwt.sign(
-      { id: user._id, role: user.role },
+      {
+        id: user._id,
+        role: user.role  // Make sure this is included
+      },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN }
     );
-
     // Remove password from output
     user.password = undefined;
 
@@ -100,7 +102,10 @@ exports.login = async (req, res) => {
 
     // 3) If everything ok, send token to client
     const token = jwt.sign(
-      { id: user._id, role: user.role },
+      {
+        id: user._id,
+        role: user.role  // Make sure this is included
+      },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN }
     );

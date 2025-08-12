@@ -7,101 +7,75 @@ const path = require('path');
 
 exports.uploadResume = async (req, res) => {
   try {
-    console.log('Upload request received'); // Debug log
-
+    // Validate file exists
     if (!req.file) {
-      console.error('No file uploaded');
-      return res.status(400).json({
-        status: 'error',
-        message: 'No file uploaded'
-      });
+      return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    console.log('File received:', {
-      originalname: req.file.originalname,
-      mimetype: req.file.mimetype,
-      size: req.file.size
-    });
-
+    // Process file
     let parsedData;
-    const filePath = req.file.path;
-
     try {
-      const fileBuffer = fs.readFileSync(filePath);
-
+      const fileBuffer = fs.readFileSync(req.file.path);
+      
       if (req.file.mimetype === 'application/pdf') {
-        console.log('Processing PDF file');
         parsedData = await parsePDF(fileBuffer);
       } else if (req.file.mimetype.includes('wordprocessingml.document')) {
-        console.log('Processing DOCX file');
         parsedData = await parseDOCX(fileBuffer);
       } else {
-        console.error('Unsupported file type:', req.file.mimetype);
-        fs.unlinkSync(filePath);
-        return res.status(400).json({
-          status: 'error',
-          message: 'Unsupported file type. Only PDF and DOCX files are allowed.'
-        });
+        fs.unlinkSync(req.file.path);
+        return res.status(400).json({ message: 'Unsupported file type' });
       }
-
-      console.log('Parsed data:', parsedData);
+      
+      // Validate parsed data
+      if (!parsedData.name || !parsedData.email) {
+        throw new Error('Failed to extract required fields from resume');
+      }
     } catch (parseError) {
-      console.error('Parsing error:', parseError);
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-      return res.status(400).json({
-        status: 'error',
-        message: 'Error parsing resume file',
-        error: parseError.message
+      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      return res.status(400).json({ 
+        message: 'Error parsing resume',
+        error: parseError.message 
       });
     }
 
-    // Create candidate record
-    const candidate = new Candidate({
-      ...parsedData,
+    // Prepare candidate data with defaults
+    const candidateData = {
+      name: parsedData.name || 'Unknown',
+      email: parsedData.email || 'no-email@example.com',
+      phone: parsedData.phone || '',
+      skills: parsedData.skills || [],
+      experience: parsedData.experience || [],
+      education: parsedData.education || [],
       resumePath: `/uploads/${req.file.filename}`,
-      uploadedBy: req.user.id
-    });
+      uploadedBy: req.user.id,
+      roleMatchScores: []
+    };
 
-    try {
-      console.log('Finding job descriptions');
-      const jobs = await JobDescription.find();
-      console.log(`Found ${jobs.length} job descriptions`);
-
-      for (const job of jobs) {
-        console.log(`Calculating match for job: ${job.title}`);
-        const score = calculateMatchScore(parsedData.skills, job.requiredSkills);
-        const explanation = generateMatchExplanation(parsedData.skills, job.requiredSkills);
-
-        candidate.roleMatchScores.push({
-          roleId: job._id,
-          score,
-          explanation
-        });
-      }
-
-      console.log('Saving candidate to database');
-      await candidate.save();
-
-      res.status(201).json({
-        status: 'success',
-        data: candidate
-      });
-    } catch (dbError) {
-      console.error('Database error:', dbError);
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-      return res.status(500).json({
-        status: 'error',
-        message: 'Error saving candidate data',
-        error: dbError.message
+    // Calculate role matches
+    const jobs = await JobDescription.find();
+    for (const job of jobs) {
+      candidateData.roleMatchScores.push({
+        roleId: job._id,
+        score: calculateMatchScore(candidateData.skills, job.requiredSkills),
+        explanation: generateMatchExplanation(candidateData.skills, job.requiredSkills)
       });
     }
 
-  } catch (err) {
-    console.error('Unexpected error:', err);
-    res.status(500).json({
-      status: 'error',
-      message: 'Internal server error',
-      error: err.message
+    // Save to database
+    const candidate = new Candidate(candidateData);
+    await candidate.save();
+
+    return res.status(201).json(candidate);
+
+  } catch (dbError) {
+    console.error('Database save error:', dbError);
+    if (req.file?.path && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    return res.status(500).json({ 
+      message: 'Error saving candidate data',
+      error: dbError.message,
+      stack: process.env.NODE_ENV === 'development' ? dbError.stack : undefined
     });
   }
 };
