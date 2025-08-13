@@ -36,6 +36,7 @@ export const getMe = () => API.get('/auth/me');
 export const logout = () => API.post('/auth/logout');
 
 export const uploadResume = (formData, token) => {
+  console.log(formData)
   return API.post('/resumes/upload', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',

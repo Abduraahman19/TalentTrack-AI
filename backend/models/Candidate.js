@@ -1,3 +1,5 @@
+const mongoose = require('mongoose'); // ✅ Yeh add karo
+
 const candidateSchema = new mongoose.Schema({
   name: { type: String, required: [true, 'Name is required'] },
   email: { 
@@ -36,7 +38,7 @@ const candidateSchema = new mongoose.Schema({
   }]
 }, { timestamps: true });
 
-// Add index for better query performance
+// Indexes
 candidateSchema.index({ email: 1 });
 candidateSchema.index({ 'skills': 1 });
 candidateSchema.index({ 'roleMatchScores.score': -1 });

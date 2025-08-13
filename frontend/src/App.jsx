@@ -22,7 +22,7 @@ function App() {
           <ProtectedRoute requireAdmin>
             <UploadResumePage />
           </ProtectedRoute>
-        } 
+        }                                           
       />
     </Routes>
   );

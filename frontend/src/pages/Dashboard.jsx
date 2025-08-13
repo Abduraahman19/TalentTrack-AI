@@ -45,7 +45,7 @@ const Dashboard = () => {
           <h1 className="text-2xl font-bold">
             Welcome, {user.firstName} {user.lastName}
           </h1>
-          <p className="text-gray-600">Role: {user.role}</p>
+          <p className="text-xl font-semibold text-gray-600">Role: {user.role}</p>
         </div>
         <div className="space-x-4">
           {(user.role === 'admin' || user.role === 'recruiter') && (

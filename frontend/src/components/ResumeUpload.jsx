@@ -25,7 +25,7 @@ const ResumeUpload = ({ onUploadSuccess }) => {
     try {
       const formData = new FormData();
       formData.append('resume', file);
-
+console.log(formData)
       const response = await uploadResume(formData, user.token);
 
       if (response.error) {

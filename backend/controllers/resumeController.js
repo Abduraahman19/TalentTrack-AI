@@ -7,12 +7,10 @@ const path = require('path');
 
 exports.uploadResume = async (req, res) => {
   try {
-    // Validate file exists
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    // Process file
     let parsedData;
     try {
       const fileBuffer = fs.readFileSync(req.file.path);
@@ -25,8 +23,7 @@ exports.uploadResume = async (req, res) => {
         fs.unlinkSync(req.file.path);
         return res.status(400).json({ message: 'Unsupported file type' });
       }
-      
-      // Validate parsed data
+
       if (!parsedData.name || !parsedData.email) {
         throw new Error('Failed to extract required fields from resume');
       }
@@ -38,7 +35,6 @@ exports.uploadResume = async (req, res) => {
       });
     }
 
-    // Prepare candidate data with defaults
     const candidateData = {
       name: parsedData.name || 'Unknown',
       email: parsedData.email || 'no-email@example.com',
@@ -51,7 +47,6 @@ exports.uploadResume = async (req, res) => {
       roleMatchScores: []
     };
 
-    // Calculate role matches
     const jobs = await JobDescription.find();
     for (const job of jobs) {
       candidateData.roleMatchScores.push({
@@ -61,7 +56,6 @@ exports.uploadResume = async (req, res) => {
       });
     }
 
-    // Save to database
     const candidate = new Candidate(candidateData);
     await candidate.save();
 
@@ -79,6 +73,7 @@ exports.uploadResume = async (req, res) => {
     });
   }
 };
+
 
 // Add pagination and filtering to getCandidates
 exports.getCandidates = async (req, res) => {
