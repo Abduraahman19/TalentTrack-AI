@@ -51,4 +51,36 @@ export const uploadResume = (formData, token) => {
   });
 };
 
-export const getCandidates = (params = {}) => API.get('/resumes', { params });
+export const getCandidates = async (params = {}, token) => {
+  try {
+    const response = await API.get('/candidates', { 
+      params,
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const updateCandidateStatus = async (candidateId, status, token) => {
+  try {
+    const response = await API.patch(`/candidates/${candidateId}/status`, 
+      { status },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const deleteCandidate = async (candidateId, token) => {
+  try {
+    await API.delete(`/candidates/${candidateId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+  } catch (error) {
+    throw error;
+  }
+};

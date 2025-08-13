@@ -1,7 +1,9 @@
-import React, { createContext, useState, useEffect } from 'react';
+// src/context/SnackbarContext.jsx
+import { createContext, useState, useEffect, useContext } from 'react';
 import { Snackbar, Alert } from '@mui/material';
 
-export const SnackbarContext = createContext();
+// Create context
+const SnackbarContext = createContext();
 
 export const SnackbarProvider = ({ children }) => {
   const [snackPack, setSnackPack] = useState([]);
@@ -10,12 +12,10 @@ export const SnackbarProvider = ({ children }) => {
 
   useEffect(() => {
     if (snackPack.length && !messageInfo) {
-      // Set a new snack when we don't have an active one
       setMessageInfo({ ...snackPack[0] });
       setSnackPack((prev) => prev.slice(1));
       setOpen(true);
     } else if (snackPack.length && messageInfo && open) {
-      // Close an active snack when a new one is added
       setOpen(false);
     }
   }, [snackPack, messageInfo, open]);
@@ -53,27 +53,25 @@ export const SnackbarProvider = ({ children }) => {
         onClose={handleClose}
         TransitionProps={{ onExited: handleExited }}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-        sx={{
-          '& .MuiSnackbar-root': {
-            bottom: { xs: 90, sm: 24 }
-          }
-        }}
       >
         <Alert
           onClose={handleClose}
           severity={messageInfo?.severity || 'info'}
           variant="filled"
-          sx={{
-            width: '100%',
-            alignItems: 'center',
-            '& .MuiAlert-icon': {
-              alignItems: 'center'
-            }
-          }}
+          sx={{ width: '100%' }}
         >
           {messageInfo?.message}
         </Alert>
       </Snackbar>
     </SnackbarContext.Provider>
   );
+};
+
+// Create and export the custom hook
+export const useSnackbar = () => {
+  const context = useContext(SnackbarContext);
+  if (!context) {
+    throw new Error('useSnackbar must be used within a SnackbarProvider');
+  }
+  return context;
 };

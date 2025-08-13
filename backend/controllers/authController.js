@@ -164,4 +164,4 @@ exports.logout = async (req, res) => {
     console.error('Logout error:', err);
     res.status(500).json({ message: 'Server error' });
   }
-};
+};  

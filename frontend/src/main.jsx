@@ -1,14 +1,15 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import App from './App'
-import './index.css'
-import { BrowserRouter } from 'react-router-dom'
-import { AuthProvider } from './context/AuthContext'
-import { SnackbarProvider } from './context/SnackbarContext'
+// src/main.jsx
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import './index.css';
+import { BrowserRouter } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import { SnackbarProvider } from './context/SnackbarContext';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <BrowserRouter> {/* ✅ Put Router here */}
+    <BrowserRouter>
       <SnackbarProvider>
         <AuthProvider>
           <App />
@@ -16,4 +17,4 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       </SnackbarProvider>
     </BrowserRouter>
   </React.StrictMode>
-)
+);

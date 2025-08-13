@@ -27,6 +27,16 @@ exports.uploadResume = async (req, res) => {
       if (!parsedData.name || !parsedData.email) {
         throw new Error('Failed to extract required fields from resume');
       }
+
+      // Check for duplicate resume for this user
+      const existingCandidate = await Candidate.checkDuplicate(parsedData.email, req.user.id);
+      if (existingCandidate) {
+        fs.unlinkSync(req.file.path);
+        return res.status(400).json({ 
+          message: 'This candidate has already been uploaded by you',
+          candidateId: existingCandidate._id
+        });
+      }
     } catch (parseError) {
       if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
       return res.status(400).json({ 
@@ -47,6 +57,7 @@ exports.uploadResume = async (req, res) => {
       roleMatchScores: []
     };
 
+    // Calculate match scores for all job descriptions
     const jobs = await JobDescription.find();
     for (const job of jobs) {
       const score = await calculateMatchScore(candidateData.skills, job.requiredSkills);
@@ -77,19 +88,26 @@ exports.uploadResume = async (req, res) => {
   }
 };
 
-
-// Add pagination and filtering to getCandidates
 exports.getCandidates = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = '', minScore } = req.query;
+    const { page = 1, limit = 10, search = '', minScore, status, skill } = req.query;
     const skip = (page - 1) * limit;
 
     let query = {};
+
+    // Apply role-based filtering
+    if (req.user.role === 'recruiter') {
+      query.uploadedBy = req.user.id;
+    } else if (req.user.role === 'viewer') {
+      // Viewers can only see candidates with status 'shortlisted' or 'interviewed'
+      query.status = { $in: ['shortlisted', 'interviewed'] };
+    }
+
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } },
-        { skills: { $regex: search, $options: 'i' } }
+        { 'skills': { $regex: search, $options: 'i' } }
       ];
     }
 
@@ -97,11 +115,20 @@ exports.getCandidates = async (req, res) => {
       query['roleMatchScores.score'] = { $gte: parseInt(minScore) };
     }
 
+    if (status) {
+      query.status = status;
+    }
+
+    if (skill) {
+      query.skills = { $in: [new RegExp(skill, 'i')] };
+    }
+
     const candidates = await Candidate.find(query)
       .skip(skip)
       .limit(parseInt(limit))
-      .populate('uploadedBy', 'firstName lastName email')
-      .populate('roleMatchScores.roleId', 'title requiredSkills');
+      .populate('uploadedBy', 'firstName lastName email role')
+      .populate('roleMatchScores.roleId', 'title requiredSkills')
+      .sort({ createdAt: -1 });
 
     const total = await Candidate.countDocuments(query);
 
@@ -114,6 +141,74 @@ exports.getCandidates = async (req, res) => {
         totalPages: Math.ceil(total / limit)
       }
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.updateCandidateStatus = async (req, res) => {
+  try {
+    const { candidateId } = req.params;
+    const { status } = req.body;
+
+    if (!['new', 'shortlisted', 'interviewed', 'hired', 'rejected'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status value' });
+    }
+
+    const candidate = await Candidate.findById(candidateId);
+    if (!candidate) {
+      return res.status(404).json({ message: 'Candidate not found' });
+    }
+
+    // Check permissions
+    if (req.user.role === 'viewer') {
+      return res.status(403).json({ message: 'Viewers cannot update candidate status' });
+    }
+
+    if (req.user.role === 'recruiter' && candidate.uploadedBy.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'You can only update candidates you uploaded' });
+    }
+
+    candidate.status = status;
+    await candidate.save();
+
+    res.json(candidate);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.addNoteToCandidate = async (req, res) => {
+  try {
+    const { candidateId } = req.params;
+    const { content } = req.body;
+
+    if (!content) {
+      return res.status(400).json({ message: 'Note content is required' });
+    }
+
+    const candidate = await Candidate.findById(candidateId);
+    if (!candidate) {
+      return res.status(404).json({ message: 'Candidate not found' });
+    }
+
+    // Check permissions
+    if (req.user.role === 'viewer') {
+      return res.status(403).json({ message: 'Viewers cannot add notes' });
+    }
+
+    if (req.user.role === 'recruiter' && candidate.uploadedBy.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'You can only add notes to candidates you uploaded' });
+    }
+
+    candidate.notes.push({
+      content,
+      addedBy: req.user.id
+    });
+
+    await candidate.save();
+
+    res.json(candidate);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
