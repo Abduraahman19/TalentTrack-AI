@@ -49,10 +49,13 @@ exports.uploadResume = async (req, res) => {
 
     const jobs = await JobDescription.find();
     for (const job of jobs) {
+      const score = await calculateMatchScore(candidateData.skills, job.requiredSkills);
+      const explanation = await generateMatchExplanation(candidateData.skills, job.requiredSkills);
+      
       candidateData.roleMatchScores.push({
         roleId: job._id,
-        score: calculateMatchScore(candidateData.skills, job.requiredSkills),
-        explanation: generateMatchExplanation(candidateData.skills, job.requiredSkills)
+        score,
+        explanation
       });
     }
 
