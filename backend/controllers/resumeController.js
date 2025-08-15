@@ -99,7 +99,6 @@ exports.getCandidates = async (req, res) => {
     if (req.user.role === 'recruiter') {
       query.uploadedBy = req.user.id;
     } else if (req.user.role === 'viewer') {
-      // Viewers can only see candidates with status 'shortlisted' or 'interviewed'
       query.status = { $in: ['shortlisted', 'interviewed'] };
     }
 

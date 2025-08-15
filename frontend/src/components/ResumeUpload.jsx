@@ -30,7 +30,7 @@ const ResumeUpload = ({ onUploadSuccess }) => {
         console.error('Error fetching candidates:', error);
       }
     };
-    
+
     fetchRecentCandidates();
   }, []);
 
@@ -101,7 +101,7 @@ const ResumeUpload = ({ onUploadSuccess }) => {
     try {
       const formData = new FormData();
       formData.append('resume', file);
-      
+
       const response = await uploadResume(formData, user.token);
 
       if (response.error) {
@@ -109,7 +109,7 @@ const ResumeUpload = ({ onUploadSuccess }) => {
       }
 
       showSnackbar('Resume processed successfully!', 'success');
-      
+
       // Refresh recent candidates after successful upload
       const updatedCandidates = await getCandidates({ limit: 3 });
       if (updatedCandidates.data) {
@@ -137,7 +137,7 @@ const ResumeUpload = ({ onUploadSuccess }) => {
   };
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
@@ -156,7 +156,7 @@ const ResumeUpload = ({ onUploadSuccess }) => {
 
             <div className="p-6">
               <form onSubmit={handleSubmit} className="space-y-6">
-                <div 
+                <div
                   className={`border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}`}
                   onDragEnter={handleDragEnter}
                   onDragLeave={handleDragLeave}
