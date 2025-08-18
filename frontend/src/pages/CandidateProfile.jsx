@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react'; // Added useContext
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -11,7 +11,8 @@ import {
   FiTag,
   FiEdit2,
   FiTrash2,
-  FiChevronLeft
+  FiChevronLeft,
+  FiX // Added missing import
 } from 'react-icons/fi';
 import { useSnackbar } from '../context/SnackbarContext';
 import { getCandidateById, addTagToCandidate, removeTagFromCandidate, updateCandidateStatus } from '../services/api';
@@ -21,12 +22,12 @@ const CandidateProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { showSnackbar } = useSnackbar();
-  const { user } = AuthContext();
+  const { user } = useContext(AuthContext); // Changed to useContext
   const [candidate, setCandidate] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [newTagName, setNewTagName] = useState('');
-  const [newTagColor, setNewTagColor] = useState('#3b82f6'); // Default blue
+  const [newTagColor, setNewTagColor] = useState('#3b82f6');
   const [isEditingStatus, setIsEditingStatus] = useState(false);
   const [newStatus, setNewStatus] = useState('');
 
@@ -190,7 +191,7 @@ const CandidateProfile = () => {
         <div className="mt-6">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-medium text-gray-800">Current Status</h2>
-            {user.role !== 'viewer' && (
+            {user?.role !== 'viewer' && ( // Added optional chaining
               <button
                 onClick={() => setIsEditingStatus(!isEditingStatus)}
                 className="text-sm text-blue-600 hover:underline"
@@ -243,7 +244,7 @@ const CandidateProfile = () => {
                   style={{ backgroundColor: `${tag.color}20`, color: tag.color }}
                 >
                   {tag.name}
-                  {(user.role === 'admin' || tag.addedBy === user.id) && (
+                  {(user?.role === 'admin' || tag.addedBy === user?.id) && ( // Added optional chaining
                     <button
                       onClick={() => handleRemoveTag(tag._id)}
                       className="ml-2 hover:opacity-70"
@@ -257,7 +258,7 @@ const CandidateProfile = () => {
           </div>
         )}
 
-        {user.role !== 'viewer' && (
+        {user?.role !== 'viewer' && ( // Added optional chaining
           <div className="mt-6">
             <h2 className="text-lg font-medium text-gray-800">Add New Tag</h2>
             <div className="flex items-center mt-2 space-x-3">
@@ -290,6 +291,7 @@ const CandidateProfile = () => {
           </div>
         )}
 
+        {/* Rest of the component remains the same */}
         {candidate.skills?.length > 0 && (
           <div className="mt-6">
             <h2 className="flex items-center text-lg font-medium text-gray-800">

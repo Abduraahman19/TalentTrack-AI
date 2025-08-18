@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiDownload, FiStar, FiAward, FiBriefcase, FiMail, FiPhone } from 'react-icons/fi';
 import { getCandidates } from '../services/api';
@@ -8,6 +9,7 @@ const CandidateList = ({ token, reloadKey, limit }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expandedCandidate, setExpandedCandidate] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchCandidates = async () => {
@@ -30,6 +32,11 @@ const CandidateList = ({ token, reloadKey, limit }) => {
 
   const toggleCandidateExpand = (id) => {
     setExpandedCandidate(expandedCandidate === id ? null : id);
+  };
+
+  const handleNameClick = (id, e) => {
+    e.stopPropagation();
+    navigate(`/candidates/${id}`);
   };
 
   const getMatchColor = (score) => {
@@ -85,8 +92,7 @@ const CandidateList = ({ token, reloadKey, limit }) => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.3 }}
-            className={`bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 ${expandedCandidate === candidate._id ? 'ring-2 ring-blue-500' : ''
-              }`}
+            className={`bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 ${expandedCandidate === candidate._id ? 'ring-2 ring-blue-500' : ''}`}
           >
             <div
               className="p-5 cursor-pointer"
@@ -102,7 +108,10 @@ const CandidateList = ({ token, reloadKey, limit }) => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-gray-800 truncate">
+                    <h3 
+                      className="text-lg font-semibold text-gray-800 truncate cursor-pointer hover:text-blue-600 hover:underline"
+                      onClick={(e) => handleNameClick(candidate._id, e)}
+                    >
                       {candidate.name}
                     </h3>
                     {candidate.isTopCandidate && (
@@ -156,7 +165,6 @@ const CandidateList = ({ token, reloadKey, limit }) => {
                   className="overflow-hidden"
                 >
                   <div className="px-5 pb-5 border-t border-gray-100">
-                    {/* Experience Section */}
                     {candidate.experience?.length > 0 && (
                       <div className="mt-4">
                         <h4 className="flex items-center text-sm font-medium text-gray-700">
@@ -180,7 +188,6 @@ const CandidateList = ({ token, reloadKey, limit }) => {
                       </div>
                     )}
 
-                    {/* Role Matches */}
                     {candidate.roleMatchScores?.filter(match => match.roleId).length > 0 ? (
                       <div className="mt-6">
                         <h4 className="flex items-center text-sm font-medium text-gray-700">
@@ -189,7 +196,7 @@ const CandidateList = ({ token, reloadKey, limit }) => {
                         </h4>
                         <div className="mt-3 space-y-4">
                           {candidate.roleMatchScores
-                            .filter(match => match.roleId) // Only show matches with existing roles
+                            .filter(match => match.roleId)
                             .map((match, i) => (
                               <div key={i} className="p-4 rounded-lg bg-gray-50">
                                 <div className="flex items-start justify-between">
@@ -220,7 +227,6 @@ const CandidateList = ({ token, reloadKey, limit }) => {
                       </div>
                     )}
 
-                    {/* Resume Download */}
                     {candidate.resumePath && (
                       <div className="mt-6">
                         <a
