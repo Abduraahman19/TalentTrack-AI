@@ -149,16 +149,26 @@ exports.deleteJobDescription = async (req, res) => {
   try {
     const { id } = req.params;
 
+    // First remove the job
     const jobDescription = await JobDescription.findByIdAndDelete(id);
 
     if (!jobDescription) {
       return res.status(404).json({ message: 'Job description not found' });
     }
 
+    // Then remove all references to this job in candidates' roleMatchScores
+    await Candidate.updateMany(
+      { 'roleMatchScores.roleId': id },
+      { $pull: { roleMatchScores: { roleId: id } } }
+    );
+
     res.json({ message: 'Job description deleted successfully' });
   } catch (err) {
     console.error('Error deleting job description:', err);
-    res.status(500).json({ message: 'Server error', error: err.message });
+    res.status(500).json({
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 };
 

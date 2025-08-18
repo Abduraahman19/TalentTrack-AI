@@ -1,14 +1,14 @@
 const mongoose = require('mongoose');
 
 const jobDescriptionSchema = new mongoose.Schema({
-  title: { 
-    type: String, 
+  title: {
+    type: String,
     required: true,
   },
   description: String,
-  requiredSkills: { 
-    type: [String], 
-    required: true 
+  requiredSkills: {
+    type: [String],
+    required: true
   },
   preferredSkills: [String],
   minExperience: {
@@ -25,8 +25,8 @@ const jobDescriptionSchema = new mongoose.Schema({
     enum: ['Full-time', 'Part-time', 'Contract', 'Internship'],
     default: 'Full-time'
   },
-  createdBy: { 
-    type: mongoose.Schema.Types.ObjectId, 
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
@@ -34,7 +34,7 @@ const jobDescriptionSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   }
-}, { 
+}, {
   timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
@@ -52,3 +52,16 @@ jobDescriptionSchema.virtual('candidatesCount', {
 });
 
 module.exports = mongoose.model('JobDescription', jobDescriptionSchema);
+
+// Add this to your JobDescription model (jobDescription.js)
+jobDescriptionSchema.post('remove', async function (doc) {
+  try {
+    await mongoose.model('Candidate').updateMany(
+      { 'roleMatchScores.roleId': doc._id },
+      { $pull: { roleMatchScores: { roleId: doc._id } } }
+    );
+    console.log(`Cleaned up role matches for deleted job ${doc._id}`);
+  } catch (err) {
+    console.error('Error cleaning up role matches:', err);
+  }
+});

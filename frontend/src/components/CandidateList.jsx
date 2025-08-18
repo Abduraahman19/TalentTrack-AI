@@ -49,7 +49,7 @@ const CandidateList = ({ token, reloadKey, limit }) => {
 
   if (error) {
     return (
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         className="p-4 text-red-600 rounded-lg bg-red-50"
@@ -85,11 +85,10 @@ const CandidateList = ({ token, reloadKey, limit }) => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.3 }}
-            className={`bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 ${
-              expandedCandidate === candidate._id ? 'ring-2 ring-blue-500' : ''
-            }`}
+            className={`bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 ${expandedCandidate === candidate._id ? 'ring-2 ring-blue-500' : ''
+              }`}
           >
-            <div 
+            <div
               className="p-5 cursor-pointer"
               onClick={() => toggleCandidateExpand(candidate._id)}
             >
@@ -182,35 +181,42 @@ const CandidateList = ({ token, reloadKey, limit }) => {
                     )}
 
                     {/* Role Matches */}
-                    {candidate.roleMatchScores?.length > 0 && (
+                    {candidate.roleMatchScores?.filter(match => match.roleId).length > 0 ? (
                       <div className="mt-6">
                         <h4 className="flex items-center text-sm font-medium text-gray-700">
                           <FiAward className="mr-2 text-gray-500" />
                           Role Compatibility
                         </h4>
                         <div className="mt-3 space-y-4">
-                          {candidate.roleMatchScores.map((match, i) => (
-                            <div key={i} className="p-4 rounded-lg bg-gray-50">
-                              <div className="flex items-start justify-between">
-                                <h5 className="font-medium text-gray-800">
-                                  {match.roleId?.title || 'Unknown Role'}
-                                </h5>
-                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium text-white ${getMatchColor(match.score)}`}>
-                                  {match.score}%
-                                </span>
+                          {candidate.roleMatchScores
+                            .filter(match => match.roleId) // Only show matches with existing roles
+                            .map((match, i) => (
+                              <div key={i} className="p-4 rounded-lg bg-gray-50">
+                                <div className="flex items-start justify-between">
+                                  <h5 className="font-medium text-gray-800">
+                                    {match.roleId?.title || 'Unknown Role'}
+                                  </h5>
+                                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium text-white ${getMatchColor(match.score)}`}>
+                                    {match.score}%
+                                  </span>
+                                </div>
+                                <div className="w-full h-2 mt-2 bg-gray-200 rounded-full">
+                                  <div
+                                    className={`h-2 rounded-full ${getMatchColor(match.score)}`}
+                                    style={{ width: `${match.score}%` }}
+                                  ></div>
+                                </div>
+                                {match.explanation && (
+                                  <p className="mt-2 text-sm text-gray-600">{match.explanation}</p>
+                                )}
                               </div>
-                              <div className="w-full h-2 mt-2 bg-gray-200 rounded-full">
-                                <div
-                                  className={`h-2 rounded-full ${getMatchColor(match.score)}`}
-                                  style={{ width: `${match.score}%` }}
-                                ></div>
-                              </div>
-                              {match.explanation && (
-                                <p className="mt-2 text-sm text-gray-600">{match.explanation}</p>
-                              )}
-                            </div>
-                          ))}
+                            ))
+                          }
                         </div>
+                      </div>
+                    ) : (
+                      <div className="p-4 mt-6 text-sm text-center text-gray-500 rounded-lg bg-gray-50">
+                        No active role matches found
                       </div>
                     )}
 
