@@ -31,16 +31,18 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
           }}
           className="flex flex-col items-center"
         >
+          {/* Loading spinner */}
         </motion.div>
       </div>
     );
   }
 
+  // If no user, redirect to login with return location
   if (!user) {
-    // Store the attempted URL for redirect after login
     return <Navigate to="/" state={{ from: location }} replace />;
   }
 
+  // If admin required but user is not admin, redirect to home
   if (requireAdmin && user.role !== 'admin') {
     return <Navigate to="/home" state={{ unauthorized: true }} replace />;
   }

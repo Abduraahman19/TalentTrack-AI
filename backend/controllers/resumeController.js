@@ -14,7 +14,7 @@ exports.uploadResume = async (req, res) => {
     let parsedData;
     try {
       const fileBuffer = fs.readFileSync(req.file.path);
-      
+
       if (req.file.mimetype === 'application/pdf') {
         parsedData = await parsePDF(fileBuffer);
       } else if (req.file.mimetype.includes('wordprocessingml.document')) {
@@ -32,16 +32,16 @@ exports.uploadResume = async (req, res) => {
       const existingCandidate = await Candidate.checkDuplicate(parsedData.email, req.user.id);
       if (existingCandidate) {
         fs.unlinkSync(req.file.path);
-        return res.status(400).json({ 
+        return res.status(400).json({
           message: 'This candidate has already been uploaded by you',
           candidateId: existingCandidate._id
         });
       }
     } catch (parseError) {
       if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: 'Error parsing resume',
-        error: parseError.message 
+        error: parseError.message
       });
     }
 
@@ -62,7 +62,7 @@ exports.uploadResume = async (req, res) => {
     for (const job of jobs) {
       const score = await calculateMatchScore(candidateData.skills, job.requiredSkills);
       const explanation = await generateMatchExplanation(candidateData.skills, job.requiredSkills);
-      
+
       candidateData.roleMatchScores.push({
         roleId: job._id,
         score,
@@ -80,7 +80,7 @@ exports.uploadResume = async (req, res) => {
     if (req.file?.path && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
     }
-    return res.status(500).json({ 
+    return res.status(500).json({
       message: 'Error saving candidate data',
       error: dbError.message,
       stack: process.env.NODE_ENV === 'development' ? dbError.stack : undefined
@@ -145,31 +145,25 @@ exports.getCandidates = async (req, res) => {
   }
 };
 
-exports.updateCandidateStatus = async (req, res) => {
+// Get candidate by ID
+exports.getCandidateById = async (req, res) => {
   try {
-    const { candidateId } = req.params;
-    const { status } = req.body;
+    const candidate = await Candidate.findById(req.params.id)
+      .populate('uploadedBy', 'firstName lastName email role')
+      .populate('roleMatchScores.roleId', 'title requiredSkills');
 
-    if (!['new', 'shortlisted', 'interviewed', 'hired', 'rejected'].includes(status)) {
-      return res.status(400).json({ message: 'Invalid status value' });
-    }
-
-    const candidate = await Candidate.findById(candidateId);
     if (!candidate) {
       return res.status(404).json({ message: 'Candidate not found' });
     }
 
     // Check permissions
-    if (req.user.role === 'viewer') {
-      return res.status(403).json({ message: 'Viewers cannot update candidate status' });
+    if (req.user.role === 'recruiter' && candidate.uploadedBy._id.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'You can only view candidates you uploaded' });
     }
 
-    if (req.user.role === 'recruiter' && candidate.uploadedBy.toString() !== req.user.id) {
-      return res.status(403).json({ message: 'You can only update candidates you uploaded' });
+    if (req.user.role === 'viewer' && !['shortlisted', 'interviewed'].includes(candidate.status)) {
+      return res.status(403).json({ message: 'You can only view shortlisted or interviewed candidates' });
     }
-
-    candidate.status = status;
-    await candidate.save();
 
     res.json(candidate);
   } catch (err) {
@@ -177,13 +171,14 @@ exports.updateCandidateStatus = async (req, res) => {
   }
 };
 
-exports.addNoteToCandidate = async (req, res) => {
+// Add tag to candidate
+exports.addTagToCandidate = async (req, res) => {
   try {
     const { candidateId } = req.params;
-    const { content } = req.body;
+    const { name, color } = req.body;
 
-    if (!content) {
-      return res.status(400).json({ message: 'Note content is required' });
+    if (!name || !color) {
+      return res.status(400).json({ message: 'Tag name and color are required' });
     }
 
     const candidate = await Candidate.findById(candidateId);
@@ -193,20 +188,53 @@ exports.addNoteToCandidate = async (req, res) => {
 
     // Check permissions
     if (req.user.role === 'viewer') {
-      return res.status(403).json({ message: 'Viewers cannot add notes' });
+      return res.status(403).json({ message: 'Viewers cannot add tags' });
     }
 
     if (req.user.role === 'recruiter' && candidate.uploadedBy.toString() !== req.user.id) {
-      return res.status(403).json({ message: 'You can only add notes to candidates you uploaded' });
+      return res.status(403).json({ message: 'You can only tag candidates you uploaded' });
     }
 
-    candidate.notes.push({
-      content,
+    candidate.tags.push({
+      name,
+      color,
       addedBy: req.user.id
     });
 
     await candidate.save();
+    res.json(candidate);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
+// Remove tag from candidate
+exports.removeTagFromCandidate = async (req, res) => {
+  try {
+    const { candidateId, tagId } = req.params;
+
+    const candidate = await Candidate.findById(candidateId);
+    if (!candidate) {
+      return res.status(404).json({ message: 'Candidate not found' });
+    }
+
+    // Check permissions
+    if (req.user.role === 'viewer') {
+      return res.status(403).json({ message: 'Viewers cannot remove tags' });
+    }
+
+    const tagIndex = candidate.tags.findIndex(tag => tag._id.toString() === tagId);
+    if (tagIndex === -1) {
+      return res.status(404).json({ message: 'Tag not found' });
+    }
+
+    // Only allow removal if user is admin or added the tag
+    if (req.user.role !== 'admin' && candidate.tags[tagIndex].addedBy.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'You can only remove tags you added' });
+    }
+
+    candidate.tags.splice(tagIndex, 1);
+    await candidate.save();
     res.json(candidate);
   } catch (err) {
     res.status(500).json({ error: err.message });

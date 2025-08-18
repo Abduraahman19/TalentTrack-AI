@@ -65,3 +65,36 @@ export const getCandidates = (params = {}) =>
       // Return empty array on error
       return { data: [] };
     });
+
+// Job Descriptions
+// Job Descriptions
+export const createJobDescription = (data) => {
+  console.log('Sending job data:', data); // Log the data being sent
+  return API.post('/jobs', data).catch(error => {
+    console.error('Detailed API error:', {
+      response: error.response?.data,
+      status: error.response?.status,
+      headers: error.response?.headers,
+      request: error.request,
+      config: error.config
+    });
+    throw error;
+  });
+};
+
+export const getJobDescriptions = (params = {}) => API.get('/jobs', { params });
+export const updateJobDescription = (id, data) => API.put(`/jobs/${id}`, data);
+export const deleteJobDescription = (id) => API.delete(`/jobs/${id}`);
+
+// Candidate Tags
+export const addTagToCandidate = (candidateId, tagData) =>
+  API.post(`/resumes/${candidateId}/tags`, tagData);
+export const removeTagFromCandidate = (candidateId, tagId) =>
+  API.delete(`/resumes/${candidateId}/tags/${tagId}`);
+
+// Candidate Status
+export const updateCandidateStatus = (candidateId, statusData) =>
+  API.put(`/resumes/${candidateId}/status`, statusData);
+
+// Get single candidate
+export const getCandidateById = (id) => API.get(`/resumes/${id}`);

@@ -1,8 +1,6 @@
 import { useContext, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-import CandidateList from "../components/CandidateList";
-import ResumeUpload from "../components/ResumeUpload";
 import StatsCard from "../components/StatsCard";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -15,23 +13,51 @@ import {
   FiFileText, 
   FiSettings,
   FiChevronRight,
-  FiLogOut
+  FiLogOut,
+  FiBriefcase,
+  FiPlus
 } from "react-icons/fi";
-import { getCandidates } from "../services/api";
+import { getCandidates, getJobDescriptions } from "../services/api";
 import { Tooltip } from "react-tooltip";
+import CandidateList from "../components/CandidateList";
+import ResumeUpload from "../components/ResumeUpload";
+import JobList from "../pages/JobList";
+import CandidateSearch from "../pages/CandidateSearch";
 
 const Dashboard = () => {
   const { user, loading, logout } = useContext(AuthContext);
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [stats, setStats] = useState({
     totalCandidates: 0,
     shortlisted: 0,
     interviewed: 0,
-    hired: 0
+    hired: 0,
+    totalJobs: 0
   });
   const [refreshKey, setRefreshKey] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [showJobForm, setShowJobForm] = useState(false);
+  const [selectedJob, setSelectedJob] = useState(null);
+
+  // Set active tab based on current route
+  useEffect(() => {
+    const path = location.pathname;
+    if (path.includes('/candidates/')) {
+      setActiveTab('candidates');
+    } else if (path === '/home') {
+      setActiveTab('dashboard');
+    } else if (path === '/upload') {
+      setActiveTab('upload');
+    } else if (path === '/jobs') {
+      setActiveTab('jobs');
+    } else if (path === '/candidates') {
+      setActiveTab('candidates');
+    } else if (path === '/settings') {
+      setActiveTab('settings');
+    }
+  }, [location]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -43,14 +69,20 @@ const Dashboard = () => {
 
   const fetchStats = async () => {
     try {
-      const response = await getCandidates();
-      const candidates = Array.isArray(response?.data) ? response.data : [];
+      const [candidatesResponse, jobsResponse] = await Promise.all([
+        getCandidates(),
+        getJobDescriptions()
+      ]);
+
+      const candidates = Array.isArray(candidatesResponse?.data) ? candidatesResponse.data : [];
+      const jobs = Array.isArray(jobsResponse?.data) ? jobsResponse.data : [];
 
       setStats({
         totalCandidates: candidates.length,
         shortlisted: candidates.filter(c => c.status === 'shortlisted').length,
         interviewed: candidates.filter(c => c.status === 'interviewed').length,
-        hired: candidates.filter(c => c.status === 'hired').length
+        hired: candidates.filter(c => c.status === 'hired').length,
+        totalJobs: jobs.length
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -58,9 +90,33 @@ const Dashboard = () => {
         totalCandidates: 0,
         shortlisted: 0,
         interviewed: 0,
-        hired: 0
+        hired: 0,
+        totalJobs: 0
       });
     }
+  };
+
+  const navigateToTab = (tab) => {
+    switch(tab) {
+      case 'dashboard':
+        navigate('/home');
+        break;
+      case 'upload':
+        navigate('/upload');
+        break;
+      case 'candidates':
+        navigate('/candidates');
+        break;
+      case 'jobs':
+        navigate('/jobs');
+        break;
+      case 'settings':
+        navigate('/settings');
+        break;
+      default:
+        navigate('/home');
+    }
+    setActiveTab(tab);
   };
 
   const handleLogout = async () => {
@@ -73,6 +129,12 @@ const Dashboard = () => {
   };
 
   const handleUploadSuccess = () => {
+    setRefreshKey(prev => prev + 1);
+  };
+
+  const handleJobFormSuccess = () => {
+    setShowJobForm(false);
+    setSelectedJob(null);
     setRefreshKey(prev => prev + 1);
   };
 
@@ -152,7 +214,7 @@ const Dashboard = () => {
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => setActiveTab('dashboard')}
+              onClick={() => navigateToTab('dashboard')}
               className={`flex items-center px-3 py-3 text-sm font-medium rounded-lg w-full ${
                 activeTab === 'dashboard' 
                   ? 'bg-blue-100 text-blue-600 shadow-inner' 
@@ -167,7 +229,7 @@ const Dashboard = () => {
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => setActiveTab('upload')}
+                onClick={() => navigateToTab('upload')}
                 className={`flex items-center px-3 py-3 text-sm font-medium rounded-lg w-full ${
                   activeTab === 'upload' 
                     ? 'bg-blue-100 text-blue-600 shadow-inner' 
@@ -182,7 +244,7 @@ const Dashboard = () => {
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => setActiveTab('candidates')}
+              onClick={() => navigateToTab('candidates')}
               className={`flex items-center px-3 py-3 text-sm font-medium rounded-lg w-full ${
                 activeTab === 'candidates' 
                   ? 'bg-blue-100 text-blue-600 shadow-inner' 
@@ -193,11 +255,25 @@ const Dashboard = () => {
               {sidebarOpen && <span className="ml-3">Candidates</span>}
             </motion.button>
 
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => navigateToTab('jobs')}
+              className={`flex items-center px-3 py-3 text-sm font-medium rounded-lg w-full ${
+                activeTab === 'jobs' 
+                  ? 'bg-blue-100 text-blue-600 shadow-inner' 
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <FiBriefcase className="flex-shrink-0" />
+              {sidebarOpen && <span className="ml-3">Jobs</span>}
+            </motion.button>
+
             {user.role === 'admin' && (
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => setActiveTab('settings')}
+                onClick={() => navigateToTab('settings')}
                 className={`flex items-center px-3 py-3 text-sm font-medium rounded-lg w-full ${
                   activeTab === 'settings' 
                     ? 'bg-blue-100 text-blue-600 shadow-inner' 
@@ -266,7 +342,7 @@ const Dashboard = () => {
         {/* Mobile tabs */}
         <div className="flex bg-white border-b border-gray-200 shadow-sm md:hidden">
           <button
-            onClick={() => setActiveTab('dashboard')}
+            onClick={() => navigateToTab('dashboard')}
             className={`flex-1 py-3 text-sm font-medium relative ${
               activeTab === 'dashboard' ? 'text-blue-600' : 'text-gray-500'
             }`}
@@ -281,7 +357,7 @@ const Dashboard = () => {
           </button>
           {(user.role === 'admin' || user.role === 'recruiter') && (
             <button
-              onClick={() => setActiveTab('upload')}
+              onClick={() => navigateToTab('upload')}
               className={`flex-1 py-3 text-sm font-medium relative ${
                 activeTab === 'upload' ? 'text-blue-600' : 'text-gray-500'
               }`}
@@ -296,7 +372,7 @@ const Dashboard = () => {
             </button>
           )}
           <button
-            onClick={() => setActiveTab('candidates')}
+            onClick={() => navigateToTab('candidates')}
             className={`flex-1 py-3 text-sm font-medium relative ${
               activeTab === 'candidates' ? 'text-blue-600' : 'text-gray-500'
               }`}
@@ -309,9 +385,23 @@ const Dashboard = () => {
               />
             )}
           </button>
+          <button
+            onClick={() => navigateToTab('jobs')}
+            className={`flex-1 py-3 text-sm font-medium relative ${
+              activeTab === 'jobs' ? 'text-blue-600' : 'text-gray-500'
+              }`}
+          >
+            <FiBriefcase className="mx-auto" />
+            {activeTab === 'jobs' && (
+              <motion.div 
+                className="absolute bottom-0 left-0 right-0 h-1 bg-blue-600"
+                layoutId="mobile-tab-indicator"
+              />
+            )}
+          </button>
           {user.role === 'admin' && (
             <button
-              onClick={() => setActiveTab('settings')}
+              onClick={() => navigateToTab('settings')}
               className={`flex-1 py-3 text-sm font-medium relative ${
                 activeTab === 'settings' ? 'text-blue-600' : 'text-gray-500'
               }`}
@@ -345,7 +435,7 @@ const Dashboard = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
                   >
-                    Welcome back, <span className="text-blue-600">{user.firstName}</span>!
+                    Welcome back, <span className="text-blue-600">{user.firstName} {user.lastName}</span>!
                   </motion.h2>
                   <motion.p 
                     className="text-gray-600"
@@ -419,6 +509,20 @@ const Dashboard = () => {
                       color="purple"
                     />
                   </motion.div>
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.7 }}
+                  >
+                    <StatsCard
+                      icon={<FiBriefcase className="text-indigo-500" size={24} />}
+                      title="Active Jobs"
+                      value={stats.totalJobs}
+                      trend="up"
+                      trendValue="10%"
+                      color="indigo"
+                    />
+                  </motion.div>
                 </div>
 
                 {/* Recent Activity */}
@@ -426,14 +530,14 @@ const Dashboard = () => {
                   className="p-6 bg-white border border-gray-100 shadow-sm rounded-xl"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.7 }}
+                  transition={{ delay: 0.8 }}
                 >
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-lg font-semibold text-gray-800">Recent Candidates</h3>
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      onClick={() => setActiveTab('candidates')}
+                      onClick={() => navigateToTab('candidates')}
                       className="flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
                     >
                       View All
@@ -483,7 +587,47 @@ const Dashboard = () => {
                         : 'View shortlisted and interviewed candidates.'}
                   </p>
                 </div>
-                <CandidateList key={refreshKey} />
+                <CandidateSearch />
+              </motion.div>
+            )}
+
+            {activeTab === 'jobs' && (
+              <motion.div
+                key="jobs"
+                variants={tabContentVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+              >
+                <div className="flex items-center justify-between mb-8">
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-800">Job Descriptions</h2>
+                    <p className="text-gray-600">
+                      {user.role === 'admin'
+                        ? 'Create and manage job descriptions for candidate matching.'
+                        : 'View available job positions.'}
+                    </p>
+                  </div>
+                  {user.role === 'admin' && (
+                    <button
+                      onClick={() => {
+                        setSelectedJob(null);
+                        setShowJobForm(true);
+                      }}
+                      className="flex items-center px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+                    >
+                      <FiPlus className="mr-2" />
+                      Add New Job
+                    </button>
+                  )}
+                </div>
+                <JobList 
+                  showForm={showJobForm}
+                  setShowForm={setShowJobForm}
+                  selectedJob={selectedJob}
+                  setSelectedJob={setSelectedJob}
+                  onSuccess={handleJobFormSuccess}
+                />
               </motion.div>
             )}
 

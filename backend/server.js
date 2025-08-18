@@ -36,6 +36,7 @@ app.use('/api/resumes/upload', apiLimiter);
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/resumes', require('./routes/resumeRoutes'));
+app.use('/api/jobs', require('./routes/jobRoutes'));
 
 // Error handling middleware
 app.use((err, req, res, next) => {

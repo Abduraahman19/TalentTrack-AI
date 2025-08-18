@@ -14,6 +14,7 @@ export const AuthProvider = ({ children }) => {
       const token = localStorage.getItem('token');
       if (!token) {
         setLoading(false);
+        navigate('/'); // Redirect to login if no token
         return;
       }
 
@@ -25,14 +26,20 @@ export const AuthProvider = ({ children }) => {
         ...response.data.data.user,
         token
       });
+      
+      // If user is already on login page but has token, redirect to home
+      if (window.location.pathname === '/') {
+        navigate('/home');
+      }
     } catch (error) {
       console.error('Error loading user:', error);
       localStorage.removeItem('token');
       setUser(null);
+      navigate('/'); // Redirect to login on error
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     loadUser();
