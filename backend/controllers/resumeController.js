@@ -88,20 +88,33 @@ exports.uploadResume = async (req, res) => {
   }
 };
 
+// Enhanced Candidate Search API Endpoint
+// Enhanced getCandidates with all filters
 exports.getCandidates = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = '', minScore, status, skill } = req.query;
-    const skip = (page - 1) * limit;
+    const { 
+      page = 1, 
+      limit = 10, 
+      search = '', 
+      minScore, 
+      status, 
+      skills = '', 
+      expMin, 
+      expMax,
+      education
+    } = req.query;
 
+    const skip = (page - 1) * limit;
     let query = {};
 
-    // Apply role-based filtering
+    // Role-based filtering
     if (req.user.role === 'recruiter') {
       query.uploadedBy = req.user.id;
     } else if (req.user.role === 'viewer') {
       query.status = { $in: ['shortlisted', 'interviewed'] };
     }
 
+    // Text search
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
@@ -110,23 +123,39 @@ exports.getCandidates = async (req, res) => {
       ];
     }
 
+    // Skills filter
+    if (skills) {
+      query.skills = { 
+        $in: skills.split(',').map(skill => new RegExp(skill, 'i'))
+      };
+    }
+
+    // Experience range filter
+    if (expMin || expMax) {
+      query['experience.duration'] = {};
+      if (expMin) query['experience.duration'].$gte = parseInt(expMin);
+      if (expMax) query['experience.duration'].$lte = parseInt(expMax);
+    }
+
+    // Education filter
+    if (education) {
+      query['education.degree'] = { $regex: new RegExp(education, 'i') };
+    }
+
+    // Match score filter
     if (minScore) {
       query['roleMatchScores.score'] = { $gte: parseInt(minScore) };
     }
 
+    // Status filter
     if (status) {
       query.status = status;
-    }
-
-    if (skill) {
-      query.skills = { $in: [new RegExp(skill, 'i')] };
     }
 
     const candidates = await Candidate.find(query)
       .skip(skip)
       .limit(parseInt(limit))
-      .populate('uploadedBy', 'firstName lastName email role')
-      .populate('roleMatchScores.roleId', 'title requiredSkills')
+      .populate('uploadedBy roleMatchScores.roleId')
       .sort({ createdAt: -1 });
 
     const total = await Candidate.countDocuments(query);
@@ -235,6 +264,70 @@ exports.removeTagFromCandidate = async (req, res) => {
 
     candidate.tags.splice(tagIndex, 1);
     await candidate.save();
+    res.json(candidate);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+
+// Tag Management Endpoints
+exports.addTag = async (req, res) => {
+  try {
+    const candidate = await Candidate.findByIdAndUpdate(
+      req.params.id,
+      { 
+        $push: { 
+          tags: {
+            name: req.body.name,
+            color: req.body.color,
+            addedBy: req.user.id
+          }
+        } 
+      },
+      { new: true }
+    );
+    res.json(candidate);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.updateStatus = async (req, res) => {
+  try {
+    const candidate = await Candidate.findByIdAndUpdate(
+      req.params.id,
+      { status: req.body.status },
+      { new: true }
+    );
+    
+    // Bonus: Send interview scheduling email if status changed to 'interviewed'
+    if (req.body.status === 'interviewed' && candidate.email) {
+      await sendInterviewEmail(candidate.email);
+    }
+    
+    res.json(candidate);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Note Management Endpoint
+exports.addNote = async (req, res) => {
+  try {
+    const candidate = await Candidate.findByIdAndUpdate(
+      req.params.id,
+      {
+        $push: {
+          notes: {
+            content: req.body.content,
+            addedBy: req.user.id
+          }
+        }
+      },
+      { new: true }
+    );
     res.json(candidate);
   } catch (err) {
     res.status(500).json({ error: err.message });

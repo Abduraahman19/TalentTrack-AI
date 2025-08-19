@@ -94,11 +94,12 @@ const JobList = () => {
   }
 
   return (
-    <>
-      <div className='pt-5 pb-8 pl-20'>
-        <h1 className="text-3xl font-bold text-gray-800">Jobs</h1>
+
+    <div className="min-h-screen bg-gray-50">   {/* 👈 Ye pura page ka background karega */}
+      <div className='pt-8 pl-10'>
+        <h1 className='text-3xl font-bold'>Jobs</h1>
       </div>
-      <div className="space-y-6 px-28">
+      <div className="px-16 pt-5 pb-10 space-y-6">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -391,7 +392,7 @@ const JobList = () => {
           </motion.div>
         )}
       </AnimatePresence>
-    </>
+    </div>
   );
 };
 

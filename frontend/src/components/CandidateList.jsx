@@ -1,7 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiDownload, FiStar, FiAward, FiBriefcase, FiMail, FiPhone } from 'react-icons/fi';
+import { 
+  FiDownload, 
+  FiStar, 
+  FiAward, 
+  FiBriefcase, 
+  FiMail, 
+  FiPhone,
+  FiBook,
+  FiUser,
+  FiClock
+} from 'react-icons/fi';
 import { getCandidates } from '../services/api';
 
 const CandidateList = ({ token, reloadKey, limit }) => {
@@ -44,6 +54,17 @@ const CandidateList = ({ token, reloadKey, limit }) => {
     if (score >= 60) return 'bg-gradient-to-r from-amber-400 to-yellow-500';
     if (score >= 40) return 'bg-gradient-to-r from-orange-400 to-amber-500';
     return 'bg-gradient-to-r from-red-400 to-pink-500';
+  };
+
+  const getStatusColor = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'new': return 'bg-blue-100 text-blue-800';
+      case 'shortlisted': return 'bg-purple-100 text-purple-800';
+      case 'interviewed': return 'bg-yellow-100 text-yellow-800';
+      case 'hired': return 'bg-green-100 text-green-800';
+      case 'rejected': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
   };
 
   if (loading) {
@@ -114,11 +135,18 @@ const CandidateList = ({ token, reloadKey, limit }) => {
                     >
                       {candidate.name}
                     </h3>
-                    {candidate.isTopCandidate && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                        <FiStar className="mr-1" /> Top Candidate
-                      </span>
-                    )}
+                    <div className="flex items-center space-x-2">
+                      {candidate.isTopCandidate && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                          <FiStar className="mr-1" /> Top
+                        </span>
+                      )}
+                      {candidate.status && (
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(candidate.status)}`}>
+                          {candidate.status}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center mt-1 text-sm text-gray-600">
                     <FiMail className="mr-1.5 flex-shrink-0" />
@@ -129,6 +157,28 @@ const CandidateList = ({ token, reloadKey, limit }) => {
                     <span>{candidate.phone}</span>
                   </div>
                 </div>
+              </div>
+
+              {/* Quick Info Bar */}
+              <div className="flex flex-wrap gap-4 mt-3 text-sm">
+                {candidate.education?.[0]?.degree && (
+                  <div className="flex items-center text-gray-600">
+                    <FiBook className="mr-1.5 flex-shrink-0" />
+                    <span>{candidate.education[0].degree}</span>
+                  </div>
+                )}
+                {candidate.experience?.[0] && (
+                  <div className="flex items-center text-gray-600">
+                    <FiBriefcase className="mr-1.5 flex-shrink-0" />
+                    <span>{candidate.experience[0].jobTitle}</span>
+                  </div>
+                )}
+                {candidate.experience?.[0]?.duration && (
+                  <div className="flex items-center text-gray-600">
+                    <FiClock className="mr-1.5 flex-shrink-0" />
+                    <span>{candidate.experience[0].duration}</span>
+                  </div>
+                )}
               </div>
 
               {candidate.skills?.length > 0 && (
@@ -165,6 +215,30 @@ const CandidateList = ({ token, reloadKey, limit }) => {
                   className="overflow-hidden"
                 >
                   <div className="px-5 pb-5 border-t border-gray-100">
+                    {/* Education Section */}
+                    {candidate.education?.length > 0 && (
+                      <div className="mt-4">
+                        <h4 className="flex items-center text-sm font-medium text-gray-700">
+                          <FiBook className="mr-2 text-gray-500" />
+                          Education
+                        </h4>
+                        <div className="mt-3 space-y-3">
+                          {candidate.education.map((edu, i) => (
+                            <div key={i} className="relative pl-6">
+                              <div className="absolute left-0 w-3 h-3 bg-blue-200 border-4 rounded-full top-1 border-blue-50"></div>
+                              <h5 className="font-medium text-gray-800">
+                                {edu.degree} at {edu.institution}
+                              </h5>
+                              {edu.year && (
+                                <p className="text-sm text-gray-500">{edu.year}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Experience Section */}
                     {candidate.experience?.length > 0 && (
                       <div className="mt-4">
                         <h4 className="flex items-center text-sm font-medium text-gray-700">
@@ -187,6 +261,19 @@ const CandidateList = ({ token, reloadKey, limit }) => {
                         </div>
                       </div>
                     )}
+
+                    {/* Status Section */}
+                    <div className="mt-4">
+                      <h4 className="flex items-center text-sm font-medium text-gray-700">
+                        <FiUser className="mr-2 text-gray-500" />
+                        Candidate Status
+                      </h4>
+                      <div className="mt-2">
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(candidate.status)}`}>
+                          {candidate.status || 'Not specified'}
+                        </span>
+                      </div>
+                    </div>
 
                     {candidate.roleMatchScores?.filter(match => match.roleId).length > 0 ? (
                       <div className="mt-6">

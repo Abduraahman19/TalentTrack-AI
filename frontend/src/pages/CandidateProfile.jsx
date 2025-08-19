@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from 'react'; // Added useContext
+import { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -12,17 +12,41 @@ import {
   FiEdit2,
   FiTrash2,
   FiChevronLeft,
-  FiX // Added missing import
+  FiX
 } from 'react-icons/fi';
 import { useSnackbar } from '../context/SnackbarContext';
-import { getCandidateById, addTagToCandidate, removeTagFromCandidate, updateCandidateStatus } from '../services/api';
+import { 
+  getCandidateById, 
+  addTagToCandidate, 
+  removeTagFromCandidate, 
+  updateCandidateStatus 
+} from '../services/api';
 import { AuthContext } from '../context/AuthContext';
+
+// Constants for better organization
+const STATUS_OPTIONS = [
+  { value: 'new', label: 'New', color: 'bg-gray-100 text-gray-800' },
+  { value: 'shortlisted', label: 'Shortlisted', color: 'bg-blue-100 text-blue-800' },
+  { value: 'interviewed', label: 'Interviewed', color: 'bg-purple-100 text-purple-800' },
+  { value: 'hired', label: 'Hired', color: 'bg-green-100 text-green-800' },
+  { value: 'rejected', label: 'Rejected', color: 'bg-red-100 text-red-800' }
+];
+
+const COLOR_OPTIONS = [
+  { name: 'Blue', value: '#3b82f6' },
+  { name: 'Red', value: '#ef4444' },
+  { name: 'Green', value: '#10b981' },
+  { name: 'Yellow', value: '#f59e0b' },
+  { name: 'Purple', value: '#8b5cf6' },
+  { name: 'Pink', value: '#ec4899' },
+  { name: 'Indigo', value: '#6366f1' }
+];
 
 const CandidateProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { showSnackbar } = useSnackbar();
-  const { user } = useContext(AuthContext); // Changed to useContext
+  const { user } = useContext(AuthContext);
   const [candidate, setCandidate] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -30,24 +54,6 @@ const CandidateProfile = () => {
   const [newTagColor, setNewTagColor] = useState('#3b82f6');
   const [isEditingStatus, setIsEditingStatus] = useState(false);
   const [newStatus, setNewStatus] = useState('');
-
-  const statusOptions = [
-    { value: 'new', label: 'New', color: 'bg-gray-100 text-gray-800' },
-    { value: 'shortlisted', label: 'Shortlisted', color: 'bg-blue-100 text-blue-800' },
-    { value: 'interviewed', label: 'Interviewed', color: 'bg-purple-100 text-purple-800' },
-    { value: 'hired', label: 'Hired', color: 'bg-green-100 text-green-800' },
-    { value: 'rejected', label: 'Rejected', color: 'bg-red-100 text-red-800' }
-  ];
-
-  const colorOptions = [
-    { name: 'Blue', value: '#3b82f6' },
-    { name: 'Red', value: '#ef4444' },
-    { name: 'Green', value: '#10b981' },
-    { name: 'Yellow', value: '#f59e0b' },
-    { name: 'Purple', value: '#8b5cf6' },
-    { name: 'Pink', value: '#ec4899' },
-    { name: 'Indigo', value: '#6366f1' }
-  ];
 
   useEffect(() => {
     const fetchCandidate = async () => {
@@ -68,7 +74,10 @@ const CandidateProfile = () => {
   }, [id]);
 
   const handleAddTag = async () => {
-    if (!newTagName.trim()) return;
+    if (!newTagName.trim()) {
+      showSnackbar('Tag name cannot be empty', 'error');
+      return;
+    }
 
     try {
       const response = await addTagToCandidate(id, {
@@ -79,7 +88,7 @@ const CandidateProfile = () => {
       setNewTagName('');
       showSnackbar('Tag added successfully', 'success');
     } catch (error) {
-      showSnackbar(error.message || 'Failed to add tag', 'error');
+      showSnackbar(error.response?.data?.message || 'Failed to add tag', 'error');
     }
   };
 
@@ -89,7 +98,7 @@ const CandidateProfile = () => {
       setCandidate(response.data);
       showSnackbar('Tag removed successfully', 'success');
     } catch (error) {
-      showSnackbar(error.message || 'Failed to remove tag', 'error');
+      showSnackbar(error.response?.data?.message || 'Failed to remove tag', 'error');
     }
   };
 
@@ -100,8 +109,15 @@ const CandidateProfile = () => {
       setIsEditingStatus(false);
       showSnackbar('Status updated successfully', 'success');
     } catch (error) {
-      showSnackbar(error.message || 'Failed to update status', 'error');
+      showSnackbar(error.response?.data?.message || 'Failed to update status', 'error');
     }
+  };
+
+  const getMatchColor = (score) => {
+    if (score >= 80) return 'bg-gradient-to-r from-green-400 to-emerald-500';
+    if (score >= 60) return 'bg-gradient-to-r from-amber-400 to-yellow-500';
+    if (score >= 40) return 'bg-gradient-to-r from-orange-400 to-amber-500';
+    return 'bg-gradient-to-r from-red-400 to-pink-500';
   };
 
   if (loading) {
@@ -128,13 +144,6 @@ const CandidateProfile = () => {
     );
   }
 
-  const getMatchColor = (score) => {
-    if (score >= 80) return 'bg-gradient-to-r from-green-400 to-emerald-500';
-    if (score >= 60) return 'bg-gradient-to-r from-amber-400 to-yellow-500';
-    if (score >= 40) return 'bg-gradient-to-r from-orange-400 to-amber-500';
-    return 'bg-gradient-to-r from-red-400 to-pink-500';
-  };
-
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -150,6 +159,7 @@ const CandidateProfile = () => {
       </button>
 
       <div className="p-6 bg-white border border-gray-200 rounded-lg shadow-sm">
+        {/* Header Section */}
         <div className="flex flex-col justify-between md:flex-row md:items-start">
           <div className="flex items-start space-x-4">
             <div className="flex items-center justify-center w-16 h-16 text-2xl font-bold text-white bg-blue-600 rounded-full">
@@ -177,7 +187,7 @@ const CandidateProfile = () => {
           <div className="flex mt-4 space-x-3 md:mt-0">
             {candidate.resumePath && (
               <a
-                href={`http://localhost:5000${candidate.resumePath}`}
+                href={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${candidate.resumePath}`}
                 download
                 className="flex items-center px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700"
               >
@@ -188,10 +198,11 @@ const CandidateProfile = () => {
           </div>
         </div>
 
+        {/* Status Section */}
         <div className="mt-6">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-medium text-gray-800">Current Status</h2>
-            {user?.role !== 'viewer' && ( // Added optional chaining
+            {user?.role !== 'viewer' && (
               <button
                 onClick={() => setIsEditingStatus(!isEditingStatus)}
                 className="text-sm text-blue-600 hover:underline"
@@ -208,7 +219,7 @@ const CandidateProfile = () => {
                 onChange={(e) => setNewStatus(e.target.value)}
                 className="px-3 py-2 border border-gray-300 rounded-md"
               >
-                {statusOptions.map((option) => (
+                {STATUS_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -223,13 +234,16 @@ const CandidateProfile = () => {
             </div>
           ) : (
             <div className="mt-2">
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${statusOptions.find(s => s.value === candidate.status)?.color || 'bg-gray-100 text-gray-800'}`}>
-                {statusOptions.find(s => s.value === candidate.status)?.label || candidate.status}
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                STATUS_OPTIONS.find(s => s.value === candidate.status)?.color || 'bg-gray-100 text-gray-800'
+              }`}>
+                {STATUS_OPTIONS.find(s => s.value === candidate.status)?.label || candidate.status}
               </span>
             </div>
           )}
         </div>
 
+        {/* Tags Section */}
         {candidate.tags?.length > 0 && (
           <div className="mt-6">
             <h2 className="flex items-center text-lg font-medium text-gray-800">
@@ -244,10 +258,11 @@ const CandidateProfile = () => {
                   style={{ backgroundColor: `${tag.color}20`, color: tag.color }}
                 >
                   {tag.name}
-                  {(user?.role === 'admin' || tag.addedBy === user?.id) && ( // Added optional chaining
+                  {(user?.role === 'admin' || tag.addedBy === user?.id) && (
                     <button
                       onClick={() => handleRemoveTag(tag._id)}
                       className="ml-2 hover:opacity-70"
+                      aria-label={`Remove tag ${tag.name}`}
                     >
                       <FiX size={14} />
                     </button>
@@ -258,23 +273,25 @@ const CandidateProfile = () => {
           </div>
         )}
 
-        {user?.role !== 'viewer' && ( // Added optional chaining
+        {/* Add Tag Section */}
+        {user?.role !== 'viewer' && (
           <div className="mt-6">
             <h2 className="text-lg font-medium text-gray-800">Add New Tag</h2>
-            <div className="flex items-center mt-2 space-x-3">
+            <div className="flex flex-col mt-2 space-y-3 sm:flex-row sm:space-y-0 sm:space-x-3">
               <input
                 type="text"
                 value={newTagName}
                 onChange={(e) => setNewTagName(e.target.value)}
                 placeholder="Tag name"
-                className="px-3 py-2 border border-gray-300 rounded-md"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
+                onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
               />
               <select
                 value={newTagColor}
                 onChange={(e) => setNewTagColor(e.target.value)}
                 className="px-3 py-2 border border-gray-300 rounded-md"
               >
-                {colorOptions.map((color) => (
+                {COLOR_OPTIONS.map((color) => (
                   <option key={color.value} value={color.value}>
                     {color.name}
                   </option>
@@ -283,7 +300,11 @@ const CandidateProfile = () => {
               <button
                 onClick={handleAddTag}
                 disabled={!newTagName.trim()}
-                className={`px-4 py-2 text-white rounded-md ${!newTagName.trim() ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                className={`px-4 py-2 text-white rounded-md ${
+                  !newTagName.trim() 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-blue-600 hover:bg-blue-700'
+                }`}
               >
                 Add Tag
               </button>
@@ -291,7 +312,7 @@ const CandidateProfile = () => {
           </div>
         )}
 
-        {/* Rest of the component remains the same */}
+        {/* Skills Section */}
         {candidate.skills?.length > 0 && (
           <div className="mt-6">
             <h2 className="flex items-center text-lg font-medium text-gray-800">
@@ -311,6 +332,7 @@ const CandidateProfile = () => {
           </div>
         )}
 
+        {/* Experience Section */}
         {candidate.experience?.length > 0 && (
           <div className="mt-6">
             <h2 className="flex items-center text-lg font-medium text-gray-800">
@@ -334,6 +356,7 @@ const CandidateProfile = () => {
           </div>
         )}
 
+        {/* Education Section */}
         {candidate.education?.length > 0 && (
           <div className="mt-6">
             <h2 className="flex items-center text-lg font-medium text-gray-800">
@@ -355,6 +378,7 @@ const CandidateProfile = () => {
           </div>
         )}
 
+        {/* Role Compatibility Section */}
         {candidate.roleMatchScores?.length > 0 && (
           <div className="mt-6">
             <h2 className="flex items-center text-lg font-medium text-gray-800">
