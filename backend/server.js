@@ -35,6 +35,7 @@ app.use('/api/resumes/upload', apiLimiter);
 
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));
+// In your main server file
 app.use('/api/resumes', require('./routes/resumeRoutes'));
 app.use('/api/jobs', require('./routes/jobRoutes'));
 

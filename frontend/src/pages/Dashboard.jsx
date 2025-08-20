@@ -3,19 +3,20 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import StatsCard from "../components/StatsCard";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  FiUpload, 
-  FiUsers, 
-  FiEye, 
-  FiUserCheck, 
-  FiUserX, 
-  FiHome, 
-  FiFileText, 
+import {
+  FiUpload,
+  FiUsers,
+  FiEye,
+  FiUserCheck,
+  FiUserX,
+  FiHome,
+  FiFileText,
   FiSettings,
   FiChevronRight,
   FiLogOut,
   FiBriefcase,
-  FiPlus
+  FiPlus,
+  FiXCircle // Add this import for rejected icon
 } from "react-icons/fi";
 import { getCandidates, getJobDescriptions } from "../services/api";
 import { Tooltip } from "react-tooltip";
@@ -34,6 +35,7 @@ const Dashboard = () => {
     shortlisted: 0,
     interviewed: 0,
     hired: 0,
+    rejected: 0, // Add rejected count
     totalJobs: 0
   });
   const [refreshKey, setRefreshKey] = useState(0);
@@ -82,6 +84,7 @@ const Dashboard = () => {
         shortlisted: candidates.filter(c => c.status === 'shortlisted').length,
         interviewed: candidates.filter(c => c.status === 'interviewed').length,
         hired: candidates.filter(c => c.status === 'hired').length,
+        rejected: candidates.filter(c => c.status === 'rejected').length, // Add rejected count
         totalJobs: jobs.length
       });
     } catch (error) {
@@ -91,13 +94,14 @@ const Dashboard = () => {
         shortlisted: 0,
         interviewed: 0,
         hired: 0,
+        rejected: 0, // Add rejected count
         totalJobs: 0
       });
     }
   };
 
   const navigateToTab = (tab) => {
-    switch(tab) {
+    switch (tab) {
       case 'dashboard':
         navigate('/home');
         break;
@@ -142,11 +146,11 @@ const Dashboard = () => {
     return (
       <div className="flex items-center justify-center h-screen bg-gradient-to-r from-blue-50 to-indigo-50">
         <motion.div
-          animate={{ 
+          animate={{
             rotate: 360,
             scale: [1, 1.2, 1]
           }}
-          transition={{ 
+          transition={{
             duration: 1.5,
             repeat: Infinity,
             ease: "linear"
@@ -163,18 +167,18 @@ const Dashboard = () => {
 
   const tabContentVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
+    visible: {
+      opacity: 1,
       y: 0,
-      transition: { 
+      transition: {
         duration: 0.4,
         ease: "easeOut"
       }
     },
-    exit: { 
-      opacity: 0, 
+    exit: {
+      opacity: 0,
       y: -20,
-      transition: { 
+      transition: {
         duration: 0.2,
         ease: "easeIn"
       }
@@ -189,7 +193,7 @@ const Dashboard = () => {
   return (
     <div className="flex h-screen bg-gradient-to-br from-gray-50 to-blue-50">
       {/* Sidebar */}
-      <motion.div 
+      <motion.div
         className="flex-col hidden bg-white border-r border-gray-200 shadow-sm md:flex"
         animate={sidebarOpen ? "open" : "closed"}
         variants={sidebarVariants}
@@ -201,25 +205,24 @@ const Dashboard = () => {
           ) : (
             <h1 className="text-xl font-bold text-white">TT</h1>
           )}
-          <button 
+          <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="p-1 text-white rounded-full hover:bg-white/20"
           >
             <FiChevronRight className={`transition-transform ${sidebarOpen ? 'rotate-180' : ''}`} />
           </button>
         </div>
-        
+
         <div className="flex flex-col flex-grow px-2 py-4 overflow-y-auto">
           <nav className="flex-1 space-y-1">
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => navigateToTab('dashboard')}
-              className={`flex items-center px-3 py-3 text-sm font-medium rounded-lg w-full ${
-                activeTab === 'dashboard' 
-                  ? 'bg-blue-100 text-blue-600 shadow-inner' 
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
+              className={`flex items-center px-3 py-3 text-sm font-medium rounded-lg w-full ${activeTab === 'dashboard'
+                ? 'bg-blue-100 text-blue-600 shadow-inner'
+                : 'text-gray-600 hover:bg-gray-100'
+                }`}
             >
               <FiHome className="flex-shrink-0" />
               {sidebarOpen && <span className="ml-3">Dashboard</span>}
@@ -230,11 +233,10 @@ const Dashboard = () => {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => navigateToTab('upload')}
-                className={`flex items-center px-3 py-3 text-sm font-medium rounded-lg w-full ${
-                  activeTab === 'upload' 
-                    ? 'bg-blue-100 text-blue-600 shadow-inner' 
-                    : 'text-gray-600 hover:bg-gray-100'
-                }`}
+                className={`flex items-center px-3 py-3 text-sm font-medium rounded-lg w-full ${activeTab === 'upload'
+                  ? 'bg-blue-100 text-blue-600 shadow-inner'
+                  : 'text-gray-600 hover:bg-gray-100'
+                  }`}
               >
                 <FiUpload className="flex-shrink-0" />
                 {sidebarOpen && <span className="ml-3">Upload Resume</span>}
@@ -245,11 +247,10 @@ const Dashboard = () => {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => navigateToTab('candidates')}
-              className={`flex items-center px-3 py-3 text-sm font-medium rounded-lg w-full ${
-                activeTab === 'candidates' 
-                  ? 'bg-blue-100 text-blue-600 shadow-inner' 
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
+              className={`flex items-center px-3 py-3 text-sm font-medium rounded-lg w-full ${activeTab === 'candidates'
+                ? 'bg-blue-100 text-blue-600 shadow-inner'
+                : 'text-gray-600 hover:bg-gray-100'
+                }`}
             >
               <FiUsers className="flex-shrink-0" />
               {sidebarOpen && <span className="ml-3">Candidates</span>}
@@ -259,11 +260,10 @@ const Dashboard = () => {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => navigateToTab('jobs')}
-              className={`flex items-center px-3 py-3 text-sm font-medium rounded-lg w-full ${
-                activeTab === 'jobs' 
-                  ? 'bg-blue-100 text-blue-600 shadow-inner' 
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
+              className={`flex items-center px-3 py-3 text-sm font-medium rounded-lg w-full ${activeTab === 'jobs'
+                ? 'bg-blue-100 text-blue-600 shadow-inner'
+                : 'text-gray-600 hover:bg-gray-100'
+                }`}
             >
               <FiBriefcase className="flex-shrink-0" />
               {sidebarOpen && <span className="ml-3">Jobs</span>}
@@ -274,11 +274,10 @@ const Dashboard = () => {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => navigateToTab('settings')}
-                className={`flex items-center px-3 py-3 text-sm font-medium rounded-lg w-full ${
-                  activeTab === 'settings' 
-                    ? 'bg-blue-100 text-blue-600 shadow-inner' 
-                    : 'text-gray-600 hover:bg-gray-100'
-                }`}
+                className={`flex items-center px-3 py-3 text-sm font-medium rounded-lg w-full ${activeTab === 'settings'
+                  ? 'bg-blue-100 text-blue-600 shadow-inner'
+                  : 'text-gray-600 hover:bg-gray-100'
+                  }`}
               >
                 <FiSettings className="flex-shrink-0" />
                 {sidebarOpen && <span className="ml-3">Settings</span>}
@@ -286,7 +285,7 @@ const Dashboard = () => {
             )}
           </nav>
         </div>
-        
+
         <div className="p-3 border-t border-gray-200">
           <div className="flex items-center p-2 rounded-lg hover:bg-gray-100">
             <div className="flex-shrink-0">
@@ -310,9 +309,8 @@ const Dashboard = () => {
           <motion.button
             whileHover={{ x: 5 }}
             onClick={handleLogout}
-            className={`flex items-center w-full px-3 py-2 mt-2 text-sm text-red-600 rounded-lg ${
-              sidebarOpen ? 'justify-start' : 'justify-center'
-            }`}
+            className={`flex items-center w-full px-3 py-2 mt-2 text-sm text-red-600 rounded-lg ${sidebarOpen ? 'justify-start' : 'justify-center'
+              }`}
           >
             <FiLogOut />
             {sidebarOpen && <span className="ml-2">Logout</span>}
@@ -326,7 +324,7 @@ const Dashboard = () => {
         <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 shadow-sm md:hidden">
           <h1 className="text-lg font-semibold text-gray-800">TalentTrack AI</h1>
           <div className="flex items-center space-x-2">
-            <div 
+            <div
               className="flex items-center justify-center w-8 h-8 rounded-full cursor-pointer bg-gradient-to-r from-blue-500 to-indigo-500"
               data-tooltip-id="user-tooltip"
               data-tooltip-content={`${user.firstName} ${user.lastName} (${user.role})`}
@@ -343,13 +341,12 @@ const Dashboard = () => {
         <div className="flex bg-white border-b border-gray-200 shadow-sm md:hidden">
           <button
             onClick={() => navigateToTab('dashboard')}
-            className={`flex-1 py-3 text-sm font-medium relative ${
-              activeTab === 'dashboard' ? 'text-blue-600' : 'text-gray-500'
-            }`}
+            className={`flex-1 py-3 text-sm font-medium relative ${activeTab === 'dashboard' ? 'text-blue-600' : 'text-gray-500'
+              }`}
           >
             <FiHome className="mx-auto" />
             {activeTab === 'dashboard' && (
-              <motion.div 
+              <motion.div
                 className="absolute bottom-0 left-0 right-0 h-1 bg-blue-600"
                 layoutId="mobile-tab-indicator"
               />
@@ -358,13 +355,12 @@ const Dashboard = () => {
           {(user.role === 'admin' || user.role === 'recruiter') && (
             <button
               onClick={() => navigateToTab('upload')}
-              className={`flex-1 py-3 text-sm font-medium relative ${
-                activeTab === 'upload' ? 'text-blue-600' : 'text-gray-500'
-              }`}
+              className={`flex-1 py-3 text-sm font-medium relative ${activeTab === 'upload' ? 'text-blue-600' : 'text-gray-500'
+                }`}
             >
               <FiUpload className="mx-auto" />
               {activeTab === 'upload' && (
-                <motion.div 
+                <motion.div
                   className="absolute bottom-0 left-0 right-0 h-1 bg-blue-600"
                   layoutId="mobile-tab-indicator"
                 />
@@ -373,13 +369,12 @@ const Dashboard = () => {
           )}
           <button
             onClick={() => navigateToTab('candidates')}
-            className={`flex-1 py-3 text-sm font-medium relative ${
-              activeTab === 'candidates' ? 'text-blue-600' : 'text-gray-500'
+            className={`flex-1 py-3 text-sm font-medium relative ${activeTab === 'candidates' ? 'text-blue-600' : 'text-gray-500'
               }`}
           >
             <FiUsers className="mx-auto" />
             {activeTab === 'candidates' && (
-              <motion.div 
+              <motion.div
                 className="absolute bottom-0 left-0 right-0 h-1 bg-blue-600"
                 layoutId="mobile-tab-indicator"
               />
@@ -387,13 +382,12 @@ const Dashboard = () => {
           </button>
           <button
             onClick={() => navigateToTab('jobs')}
-            className={`flex-1 py-3 text-sm font-medium relative ${
-              activeTab === 'jobs' ? 'text-blue-600' : 'text-gray-500'
+            className={`flex-1 py-3 text-sm font-medium relative ${activeTab === 'jobs' ? 'text-blue-600' : 'text-gray-500'
               }`}
           >
             <FiBriefcase className="mx-auto" />
             {activeTab === 'jobs' && (
-              <motion.div 
+              <motion.div
                 className="absolute bottom-0 left-0 right-0 h-1 bg-blue-600"
                 layoutId="mobile-tab-indicator"
               />
@@ -402,13 +396,12 @@ const Dashboard = () => {
           {user.role === 'admin' && (
             <button
               onClick={() => navigateToTab('settings')}
-              className={`flex-1 py-3 text-sm font-medium relative ${
-                activeTab === 'settings' ? 'text-blue-600' : 'text-gray-500'
-              }`}
+              className={`flex-1 py-3 text-sm font-medium relative ${activeTab === 'settings' ? 'text-blue-600' : 'text-gray-500'
+                }`}
             >
               <FiSettings className="mx-auto" />
               {activeTab === 'settings' && (
-                <motion.div 
+                <motion.div
                   className="absolute bottom-0 left-0 right-0 h-1 bg-blue-600"
                   layoutId="mobile-tab-indicator"
                 />
@@ -429,7 +422,7 @@ const Dashboard = () => {
                 exit="exit"
               >
                 <div className="mb-8">
-                  <motion.h2 
+                  <motion.h2
                     className="text-2xl font-bold text-gray-800"
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -437,7 +430,7 @@ const Dashboard = () => {
                   >
                     Welcome back, <span className="text-blue-600">{user.firstName} {user.lastName}</span>!
                   </motion.h2>
-                  <motion.p 
+                  <motion.p
                     className="text-gray-600"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -509,6 +502,20 @@ const Dashboard = () => {
                       color="purple"
                     />
                   </motion.div>
+                  {/* NEW: Rejected Stats Card */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.65 }}
+                  >
+                    <StatsCard
+                      icon={<FiXCircle className="text-red-500" size={24} />}
+                      title="Rejected"
+                      value={stats.rejected}
+                      change={-2}
+                      color="red"
+                    />
+                  </motion.div>
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -526,7 +533,7 @@ const Dashboard = () => {
                 </div>
 
                 {/* Recent Activity */}
-                <motion.div 
+                <motion.div
                   className="p-6 bg-white border border-gray-100 shadow-sm rounded-xl"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -621,7 +628,7 @@ const Dashboard = () => {
                     </button>
                   )}
                 </div>
-                <JobList 
+                <JobList
                   showForm={showJobForm}
                   setShowForm={setShowJobForm}
                   selectedJob={selectedJob}
@@ -645,7 +652,7 @@ const Dashboard = () => {
                     Configure system preferences and manage users.
                   </p>
                 </div>
-                <motion.div 
+                <motion.div
                   className="p-6 bg-white border border-gray-100 shadow-sm rounded-xl"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}

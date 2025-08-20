@@ -1,25 +1,10 @@
 import { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { 
-  FiDownload, 
-  FiMail, 
-  FiPhone, 
-  FiBriefcase, 
-  FiAward, 
-  FiUser, 
-  FiTag,
-  FiEdit2,
-  FiTrash2,
-  FiChevronLeft,
-  FiX
+import {FiDownload, FiMail, FiPhone, FiBriefcase, FiAward, FiUser, FiTag, FiEdit, FiSave, FiChevronLeft, FiX, FiTrash2, FiXCircle, FiMessageSquare
 } from 'react-icons/fi';
 import { useSnackbar } from '../context/SnackbarContext';
-import { 
-  getCandidateById, 
-  addTagToCandidate, 
-  removeTagFromCandidate, 
-  updateCandidateStatus 
+import { getCandidateById, addTagToCandidate, removeTagFromCandidate, updateCandidateStatus, addNoteToCandidate, updateNoteForCandidate, deleteNoteFromCandidate
 } from '../services/api';
 import { AuthContext } from '../context/AuthContext';
 
@@ -54,6 +39,10 @@ const CandidateProfile = () => {
   const [newTagColor, setNewTagColor] = useState('#3b82f6');
   const [isEditingStatus, setIsEditingStatus] = useState(false);
   const [newStatus, setNewStatus] = useState('');
+  const [newNote, setNewNote] = useState(''); // Add this state
+  const [showNotes, setShowNotes] = useState(false); // Add this state
+  const [editingNoteId, setEditingNoteId] = useState(null); // Add this state
+  const [editingNoteContent, setEditingNoteContent] = useState(''); // Add this state
 
   useEffect(() => {
     const fetchCandidate = async () => {
@@ -110,6 +99,64 @@ const CandidateProfile = () => {
       showSnackbar('Status updated successfully', 'success');
     } catch (error) {
       showSnackbar(error.response?.data?.message || 'Failed to update status', 'error');
+    }
+  };
+
+  // Add handlers for note operations
+  const handleAddNote = async () => {
+    if (!newNote.trim()) {
+      showSnackbar('Note cannot be empty', 'error');
+      return;
+    }
+
+    try {
+      const response = await addNoteToCandidate(id, { content: newNote });
+      setCandidate(response.data);
+      setNewNote('');
+      showSnackbar('Note added successfully', 'success');
+    } catch (error) {
+      showSnackbar(error.response?.data?.message || 'Failed to add note', 'error');
+    }
+  };
+
+  const handleStartEditNote = (note) => {
+    setEditingNoteId(note._id);
+    setEditingNoteContent(note.content);
+  };
+
+  const handleCancelEditNote = () => {
+    setEditingNoteId(null);
+    setEditingNoteContent('');
+  };
+
+  const handleUpdateNote = async (noteId) => {
+    if (!editingNoteContent.trim()) {
+      showSnackbar('Note cannot be empty', 'error');
+      return;
+    }
+
+    try {
+      const response = await updateNoteForCandidate(id, noteId, { content: editingNoteContent });
+      setCandidate(response.data);
+      setEditingNoteId(null);
+      setEditingNoteContent('');
+      showSnackbar('Note updated successfully', 'success');
+    } catch (error) {
+      showSnackbar(error.response?.data?.message || 'Failed to update note', 'error');
+    }
+  };
+
+  const handleDeleteNote = async (noteId) => {
+    if (!window.confirm('Are you sure you want to delete this note?')) {
+      return;
+    }
+
+    try {
+      const response = await deleteNoteFromCandidate(id, noteId);
+      setCandidate(response.data);
+      showSnackbar('Note deleted successfully', 'success');
+    } catch (error) {
+      showSnackbar(error.response?.data?.message || 'Failed to delete note', 'error');
     }
   };
 
@@ -234,9 +281,8 @@ const CandidateProfile = () => {
             </div>
           ) : (
             <div className="mt-2">
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                STATUS_OPTIONS.find(s => s.value === candidate.status)?.color || 'bg-gray-100 text-gray-800'
-              }`}>
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${STATUS_OPTIONS.find(s => s.value === candidate.status)?.color || 'bg-gray-100 text-gray-800'
+                }`}>
                 {STATUS_OPTIONS.find(s => s.value === candidate.status)?.label || candidate.status}
               </span>
             </div>
@@ -300,17 +346,125 @@ const CandidateProfile = () => {
               <button
                 onClick={handleAddTag}
                 disabled={!newTagName.trim()}
-                className={`px-4 py-2 text-white rounded-md ${
-                  !newTagName.trim() 
-                    ? 'bg-gray-400 cursor-not-allowed' 
-                    : 'bg-blue-600 hover:bg-blue-700'
-                }`}
+                className={`px-4 py-2 text-white rounded-md ${!newTagName.trim()
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
               >
                 Add Tag
               </button>
             </div>
           </div>
         )}
+
+        {/* Notes Section */}
+        <div className="mt-6">
+          <div className="flex items-center justify-between">
+            <h2 className="flex items-center text-lg font-medium text-gray-800">
+              <FiMessageSquare className="mr-2" />
+              Notes
+            </h2>
+            <button
+              onClick={() => setShowNotes(!showNotes)}
+              className="text-sm text-blue-600 hover:underline"
+            >
+              {showNotes ? 'Hide Notes' : 'Show Notes'}
+            </button>
+          </div>
+
+          {showNotes && (
+            <>
+              {candidate.notes?.length > 0 ? (
+                <div className="mt-4 space-y-4">
+                  {candidate.notes.map((note, index) => (
+                    <div key={index} className="p-4 rounded-lg bg-gray-50">
+                      {editingNoteId === note._id ? (
+                        <div className="space-y-3">
+                          <textarea
+                            value={editingNoteContent}
+                            onChange={(e) => setEditingNoteContent(e.target.value)}
+                            rows="3"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                          />
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleUpdateNote(note._id)}
+                              className="px-3 py-1 text-white bg-green-600 rounded-md hover:bg-green-700"
+                            >
+                              <FiSave className="inline mr-1" /> Save
+                            </button>
+                            <button
+                              onClick={handleCancelEditNote}
+                              className="px-3 py-1 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+                            >
+                              <FiXCircle className="inline mr-1" /> Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="text-gray-700">{note.content}</p>
+                          <div className="flex items-center justify-between mt-2">
+                            <div className="text-xs text-gray-500">
+                              <span>By: {note.addedBy?.firstName || 'Unknown'}</span>
+                              <span className="mx-2">•</span>
+                              <span>{new Date(note.createdAt).toLocaleDateString()}</span>
+                            </div>
+                            {(user?.role === 'admin' || note.addedBy === user?.id) && (
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={() => handleStartEditNote(note)}
+                                  className="text-blue-600 hover:text-blue-800"
+                                  aria-label="Edit note"
+                                >
+                                  <FiEdit size={14} />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteNote(note._id)}
+                                  className="text-red-600 hover:text-red-800"
+                                  aria-label="Delete note"
+                                >
+                                  <FiTrash2 size={14} />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-gray-500">No notes yet.</p>
+              )}
+
+              {user?.role !== 'viewer' && editingNoteId === null && (
+                <div className="mt-4">
+                  <h3 className="font-medium text-gray-700 text-md">Add Note</h3>
+                  <div className="flex flex-col mt-2 space-y-3 sm:flex-row sm:space-y-0 sm:space-x-3">
+                    <textarea
+                      value={newNote}
+                      onChange={(e) => setNewNote(e.target.value)}
+                      placeholder="Add your note here..."
+                      rows="3"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
+                    />
+                    <button
+                      onClick={handleAddNote}
+                      disabled={!newNote.trim()}
+                      className={`px-4 py-2 text-white rounded-md ${!newNote.trim()
+                        ? 'bg-gray-400 cursor-not-allowed'
+                        : 'bg-blue-600 hover:bg-blue-700'
+                        }`}
+                    >
+                      Add Note
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
 
         {/* Skills Section */}
         {candidate.skills?.length > 0 && (

@@ -92,14 +92,14 @@ exports.uploadResume = async (req, res) => {
 // Enhanced getCandidates with all filters
 exports.getCandidates = async (req, res) => {
   try {
-    const { 
-      page = 1, 
-      limit = 10, 
-      search = '', 
-      minScore, 
-      status, 
-      skills = '', 
-      expMin, 
+    const {
+      page = 1,
+      limit = 10,
+      search = '',
+      minScore,
+      status,
+      skills = '',
+      expMin,
       expMax,
       education
     } = req.query;
@@ -125,7 +125,7 @@ exports.getCandidates = async (req, res) => {
 
     // Skills filter
     if (skills) {
-      query.skills = { 
+      query.skills = {
         $in: skills.split(',').map(skill => new RegExp(skill, 'i'))
       };
     }
@@ -203,14 +203,14 @@ exports.getCandidateById = async (req, res) => {
 // Add tag to candidate
 exports.addTagToCandidate = async (req, res) => {
   try {
-    const { candidateId } = req.params;
+    const { id } = req.params;
     const { name, color } = req.body;
 
     if (!name || !color) {
       return res.status(400).json({ message: 'Tag name and color are required' });
     }
 
-    const candidate = await Candidate.findById(candidateId);
+    const candidate = await Candidate.findById(id);
     if (!candidate) {
       return res.status(404).json({ message: 'Candidate not found' });
     }
@@ -240,9 +240,9 @@ exports.addTagToCandidate = async (req, res) => {
 // Remove tag from candidate
 exports.removeTagFromCandidate = async (req, res) => {
   try {
-    const { candidateId, tagId } = req.params;
+    const { id, tagId } = req.params;
 
-    const candidate = await Candidate.findById(candidateId);
+    const candidate = await Candidate.findById(id);
     if (!candidate) {
       return res.status(404).json({ message: 'Candidate not found' });
     }
@@ -270,64 +270,206 @@ exports.removeTagFromCandidate = async (req, res) => {
   }
 };
 
-
-
-// Tag Management Endpoints
-exports.addTag = async (req, res) => {
+// Update candidate status
+exports.updateCandidateStatus = async (req, res) => {
   try {
-    const candidate = await Candidate.findByIdAndUpdate(
-      req.params.id,
-      { 
-        $push: { 
-          tags: {
-            name: req.body.name,
-            color: req.body.color,
-            addedBy: req.user.id
-          }
-        } 
-      },
-      { new: true }
-    );
-    res.json(candidate);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
+    const { status } = req.body;
+    const { id } = req.params;
 
-exports.updateStatus = async (req, res) => {
-  try {
-    const candidate = await Candidate.findByIdAndUpdate(
-      req.params.id,
-      { status: req.body.status },
-      { new: true }
-    );
-    
-    // Bonus: Send interview scheduling email if status changed to 'interviewed'
-    if (req.body.status === 'interviewed' && candidate.email) {
-      await sendInterviewEmail(candidate.email);
+    if (!status) {
+      return res.status(400).json({ message: 'Status is required' });
     }
-    
+
+    const candidate = await Candidate.findById(id);
+    if (!candidate) {
+      return res.status(404).json({ message: 'Candidate not found' });
+    }
+
+    // Check permissions
+    if (req.user.role === 'viewer') {
+      return res.status(403).json({ message: 'Viewers cannot update status' });
+    }
+
+    if (req.user.role === 'recruiter' && candidate.uploadedBy.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'You can only update status for candidates you uploaded' });
+    }
+
+    candidate.status = status;
+    await candidate.save();
+
     res.json(candidate);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// Note Management Endpoint
-exports.addNote = async (req, res) => {
+// Add note to candidate
+exports.addNoteToCandidate = async (req, res) => {
   try {
-    const candidate = await Candidate.findByIdAndUpdate(
-      req.params.id,
-      {
-        $push: {
-          notes: {
-            content: req.body.content,
-            addedBy: req.user.id
-          }
-        }
-      },
-      { new: true }
-    );
+    const { id } = req.params;
+    const { content } = req.body;
+
+    if (!content || !content.trim()) {
+      return res.status(400).json({ message: 'Note content is required' });
+    }
+
+    const candidate = await Candidate.findById(id);
+    if (!candidate) {
+      return res.status(404).json({ message: 'Candidate not found' });
+    }
+
+    // Check permissions
+    if (req.user.role === 'viewer') {
+      return res.status(403).json({ message: 'Viewers cannot add notes' });
+    }
+
+    if (req.user.role === 'recruiter' && candidate.uploadedBy.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'You can only add notes to candidates you uploaded' });
+    }
+
+    candidate.notes.push({
+      content: content.trim(),
+      addedBy: req.user.id
+    });
+
+    await candidate.save();
+    res.json(candidate);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Update candidate status
+exports.updateCandidateStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    const { id } = req.params;
+
+    if (!status) {
+      return res.status(400).json({ message: 'Status is required' });
+    }
+
+    const candidate = await Candidate.findById(id);
+    if (!candidate) {
+      return res.status(404).json({ message: 'Candidate not found' });
+    }
+
+    // Check permissions
+    if (req.user.role === 'viewer') {
+      return res.status(403).json({ message: 'Viewers cannot update status' });
+    }
+
+    if (req.user.role === 'recruiter' && candidate.uploadedBy.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'You can only update status for candidates you uploaded' });
+    }
+
+    candidate.status = status;
+    await candidate.save();
+
+    res.json(candidate);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Add note to candidate
+exports.addNoteToCandidate = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { content } = req.body;
+
+    if (!content || !content.trim()) {
+      return res.status(400).json({ message: 'Note content is required' });
+    }
+
+    const candidate = await Candidate.findById(id);
+    if (!candidate) {
+      return res.status(404).json({ message: 'Candidate not found' });
+    }
+
+    // Check permissions
+    if (req.user.role === 'viewer') {
+      return res.status(403).json({ message: 'Viewers cannot add notes' });
+    }
+
+    if (req.user.role === 'recruiter' && candidate.uploadedBy.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'You can only add notes to candidates you uploaded' });
+    }
+
+    candidate.notes.push({
+      content: content.trim(),
+      addedBy: req.user.id
+    });
+
+    await candidate.save();
+    res.json(candidate);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+// Update note for candidate
+exports.updateNoteForCandidate = async (req, res) => {
+  try {
+    const { id, noteId } = req.params; // Use id and noteId
+    const { content } = req.body;
+
+    if (!content || !content.trim()) {
+      return res.status(400).json({ message: 'Note content is required' });
+    }
+
+    const candidate = await Candidate.findById(id);
+    if (!candidate) {
+      return res.status(404).json({ message: 'Candidate not found' });
+    }
+
+    // Find the note
+    const noteIndex = candidate.notes.findIndex(note => note._id.toString() === noteId);
+    if (noteIndex === -1) {
+      return res.status(404).json({ message: 'Note not found' });
+    }
+
+    // Check permissions - only the note creator or admin can update
+    if (req.user.role !== 'admin' && candidate.notes[noteIndex].addedBy.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'You can only update your own notes' });
+    }
+
+    // Update the note
+    candidate.notes[noteIndex].content = content.trim();
+    candidate.notes[noteIndex].updatedAt = new Date();
+
+    await candidate.save();
+    res.json(candidate);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Delete note from candidate
+exports.deleteNoteFromCandidate = async (req, res) => {
+  try {
+    const { id, noteId } = req.params; // Use id and noteId
+
+    const candidate = await Candidate.findById(id);
+    if (!candidate) {
+      return res.status(404).json({ message: 'Candidate not found' });
+    }
+
+    // Find the note
+    const noteIndex = candidate.notes.findIndex(note => note._id.toString() === noteId);
+    if (noteIndex === -1) {
+      return res.status(404).json({ message: 'Note not found' });
+    }
+
+    // Check permissions - only the note creator or admin can delete
+    if (req.user.role !== 'admin' && candidate.notes[noteIndex].addedBy.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'You can only delete your own notes' });
+    }
+
+    // Remove the note
+    candidate.notes.splice(noteIndex, 1);
+    await candidate.save();
     res.json(candidate);
   } catch (err) {
     res.status(500).json({ error: err.message });
