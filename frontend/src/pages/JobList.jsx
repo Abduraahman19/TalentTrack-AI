@@ -4,6 +4,8 @@ import { FiEdit2, FiTrash2, FiPlus, FiSearch, FiX, FiFilter } from 'react-icons/
 import { useSnackbar } from '../context/SnackbarContext';
 import { getJobDescriptions, deleteJobDescription } from '../services/api';
 import JobDescriptionForm from '../components/JobDescriptionForm';
+import Layout from '../components/Layout/Layout';
+import MobileHeader from '../components/Layout/MobileHeader';
 
 const JobList = () => {
   const [jobs, setJobs] = useState([]);
@@ -94,7 +96,8 @@ const JobList = () => {
   }
 
   return (
-
+<Layout>
+<MobileHeader/>
     <div className="min-h-screen bg-gray-50">   {/* 👈 Ye pura page ka background karega */}
       <div className='pt-8 pl-10'>
         <h1 className='text-3xl font-bold'>Jobs</h1>
@@ -393,6 +396,7 @@ const JobList = () => {
         )}
       </AnimatePresence>
     </div>
+    </Layout>
   );
 };
 
