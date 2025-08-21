@@ -34,11 +34,19 @@ const Dashboard = () => {
     }
   }, [user, refreshKey]);
 
+  // src/pages/Dashboard.jsx - Update fetchStats function
   const fetchStats = async () => {
     try {
+      const params = {};
+
+      // Add company filter for recruiters
+      if (user?.role === 'recruiter' && user?.companyId) {
+        params.companyId = user.companyId;
+      }
+
       const [candidatesResponse, jobsResponse] = await Promise.all([
-        getCandidates(),
-        getJobDescriptions()
+        getCandidates(params),
+        getJobDescriptions(params) // Make sure this also accepts companyId
       ]);
 
       const candidates = Array.isArray(candidatesResponse?.data) ? candidatesResponse.data : [];
@@ -72,7 +80,7 @@ const Dashboard = () => {
   return (
     <Layout>
       <MobileHeader />
-      
+
       <div className="flex-1 p-4 overflow-y-auto md:p-6">
         <div className="mb-8">
           <motion.h2

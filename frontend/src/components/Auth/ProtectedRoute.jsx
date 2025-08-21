@@ -1,3 +1,4 @@
+// src/components/Auth/ProtectedRoute.jsx
 import { useContext } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
@@ -40,6 +41,11 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
   // If no user, redirect to login with return location
   if (!user) {
     return <Navigate to="/" state={{ from: location }} replace />;
+  }
+
+  // If user is viewer, redirect to jobs page for all routes except jobs
+  if (user.role === 'viewer' && location.pathname !== '/jobs') {
+    return <Navigate to="/jobs" replace />;
   }
 
   // If admin required but user is not admin, redirect to home

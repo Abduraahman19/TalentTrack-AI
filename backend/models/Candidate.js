@@ -1,13 +1,13 @@
+// models/Candidate.js - Updated
 const mongoose = require('mongoose');
 
 const candidateSchema = new mongoose.Schema({
   name: { type: String, required: [true, 'Name is required'] },
-  email: { 
-    type: String, 
+  email: {
+    type: String,
     required: [true, 'Email is required'],
-    unique: true, // Ensure email is unique
     validate: {
-      validator: function(v) {
+      validator: function (v) {
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
       },
       message: props => `${props.value} is not a valid email!`
@@ -27,10 +27,14 @@ const candidateSchema = new mongoose.Schema({
     year: String
   }],
   resumePath: { type: String, required: true },
-  uploadedBy: { 
-    type: mongoose.Schema.Types.ObjectId, 
+  uploadedBy: {
+    type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true 
+    required: true
+  },
+  company: {
+    type: String,
+    required: true
   },
   roleMatchScores: [{
     roleId: { type: mongoose.Schema.Types.ObjectId, ref: 'JobDescription' },
@@ -51,19 +55,26 @@ const candidateSchema = new mongoose.Schema({
     type: String,
     enum: ['new', 'shortlisted', 'interviewed', 'hired', 'rejected'],
     default: 'new'
-  }
+  },
+  company: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Company',
+    required: true
+  },
 }, { timestamps: true });
 
 // Indexes for better performance
+candidateSchema.index({ company: 1 });
 candidateSchema.index({ email: 1 });
 candidateSchema.index({ 'skills': 1 });
 candidateSchema.index({ 'roleMatchScores.score': -1 });
 candidateSchema.index({ uploadedBy: 1 });
 candidateSchema.index({ status: 1 });
+candidateSchema.index({ company: 1 }); // Add company index
 
-// Prevent duplicate resume uploads
-candidateSchema.statics.checkDuplicate = async function(email, uploadedBy) {
-  return this.findOne({ email, uploadedBy });
+// Prevent duplicate resume uploads for the same company
+candidateSchema.statics.checkDuplicate = async function (email, company) {
+  return this.findOne({ email, company });
 };
 
 module.exports = mongoose.model('Candidate', candidateSchema);

@@ -5,6 +5,7 @@ import { useSnackbar } from '../context/SnackbarContext';
 import Snackbar from '@mui/material/Snackbar';
 import { AuthContext } from '../context/AuthContext';
 import Alert from '@mui/material/Alert';
+import axios from 'axios';
 import { Helmet } from 'react-helmet';
 
 // Enhanced validation functions
@@ -27,6 +28,8 @@ const LoginRegisterPage = () => {
   const { login } = useContext(AuthContext);
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
+  const [companies, setCompanies] = useState([]);
+  const [loadingCompanies, setLoadingCompanies] = useState(false);
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   const [buttonLoading, setButtonLoading] = useState({
     login: false,
@@ -41,13 +44,16 @@ const LoginRegisterPage = () => {
     severity: 'success'
   });
 
+  // Update register form state
   const [registerForm, setRegisterForm] = useState({
     firstName: '',
     lastName: '',
     username: '',
     email: '',
     password: '',
-    role: 'recruiter'
+    role: 'recruiter',
+    companyId: '',
+    companyName: ''
   });
 
   const [registerErrors, setRegisterErrors] = useState({});
@@ -69,6 +75,44 @@ const LoginRegisterPage = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Fetch companies for dropdown
+  useEffect(() => {
+    if (!isLogin) {
+      fetchCompanies();
+    }
+  }, [isLogin]);
+
+  const fetchCompanies = async () => {
+    try {
+      setLoadingCompanies(true);
+      const response = await axios.get('http://localhost:5000/api/companies'); // Correct endpoint
+
+      if (response.data && response.data.data && response.data.data.companies) {
+        setCompanies(response.data.data.companies);
+      } else {
+        setCompanies([]);
+        console.error('Unexpected response format:', response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching companies:', error);
+
+      if (error.response && error.response.status === 404) {
+        // API endpoint not found, use fallback
+        console.log('Companies endpoint not available, using fallback');
+        setCompanies([
+          { _id: '1', name: 'Tech Solutions Inc.' },
+          { _id: '2', name: 'Global Innovations Ltd.' },
+          { _id: '3', name: 'Digital Creations Co.' }
+        ]);
+      } else {
+        showSnackbar('Failed to load companies', 'error');
+      }
+    } finally {
+      setLoadingCompanies(false);
+    }
+  };
+
+  // Update validation function
   const validateRegisterForm = () => {
     const errors = {};
 
@@ -104,9 +148,19 @@ const LoginRegisterPage = () => {
       errors.password = 'Password must be at least 8 characters with uppercase, lowercase, number and special character';
     }
 
+    // Company validation based on role
+    if (registerForm.role === 'admin') {
+      if (!registerForm.companyName.trim()) {
+        errors.companyName = 'Company name is required for admin';
+      }
+    } else {
+      if (!registerForm.companyId) {
+        errors.companyId = 'Please select a company';
+      }
+    }
+
     return errors;
   };
-
   const validateLoginForm = () => {
     const errors = {};
 
@@ -121,8 +175,17 @@ const LoginRegisterPage = () => {
     return errors;
   };
 
+  // Update handleRegisterChange function
   const handleRegisterChange = (field, value) => {
-    setRegisterForm(prev => ({ ...prev, [field]: value }));
+    setRegisterForm(prev => ({
+      ...prev,
+      [field]: value,
+      // Reset company fields when role changes
+      ...(field === 'role' && {
+        companyId: '',
+        companyName: ''
+      })
+    }));
     if (registerErrors[field]) {
       setRegisterErrors(prev => ({ ...prev, [field]: '' }));
     }
@@ -150,39 +213,77 @@ const LoginRegisterPage = () => {
     if (Object.keys(errors).length === 0) {
       setButtonLoading(prev => ({ ...prev, register: true }));
       try {
-        const response = await fetch('http://localhost:5000/api/auth/register', {
-          method: 'POST',
-          credentials: 'include', // if using cookies
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(registerForm) // Changed from 'data' to 'registerForm'
+        console.log('Sending registration data:', {
+          firstName: registerForm.firstName,
+          lastName: registerForm.lastName,
+          username: registerForm.username,
+          email: registerForm.email,
+          password: registerForm.password,
+          role: registerForm.role,
+          companyId: registerForm.role !== 'admin' ? registerForm.companyId : undefined,
+          companyName: registerForm.role === 'admin' ? registerForm.companyName : undefined
         });
 
-        const data = await response.json();
+        const response = await axios.post('http://localhost:5000/api/auth/register', {
+          firstName: registerForm.firstName,
+          lastName: registerForm.lastName,
+          username: registerForm.username,
+          email: registerForm.email,
+          password: registerForm.password,
+          role: registerForm.role,
+          companyId: registerForm.role !== 'admin' ? registerForm.companyId : undefined,
+          companyName: registerForm.role === 'admin' ? registerForm.companyName : undefined
+        });
 
-        if (response.ok) {
+        if (response.data.status === 'success') {
           showSnackbar('Account created successfully!', 'success');
+
+          // Auto-login after successful registration
+          login(response.data.data.user, response.data.token);
+
+          // Reset form
           setRegisterForm({
             firstName: '',
             lastName: '',
             username: '',
             email: '',
             password: '',
-            role: 'recruiter'
+            role: 'recruiter',
+            companyId: '',
+            companyName: ''
           });
-          navigate('/home');
+
+          // Redirect viewers to jobs page, others to home
+          if (response.data.data.user.role === 'viewer') {
+            navigate('/jobs');
+          } else {
+            navigate('/home');
+          }
+
         } else {
-          showSnackbar(data.message || 'Registration failed', 'error');
+          showSnackbar(response.data.message || 'Registration failed', 'error');
         }
       } catch (error) {
-        showSnackbar('An error occurred during registration', 'error');
-        console.error('Registration error:', error);
+        console.error('Registration error details:', error);
+
+        if (error.response && error.response.data) {
+          if (error.response.data.errors) {
+            setRegisterErrors(error.response.data.errors);
+          } else if (error.response.data.field) {
+            setRegisterErrors({ [error.response.data.field]: error.response.data.message });
+          }
+          showSnackbar(error.response.data.message || 'Registration failed', 'error');
+        } else if (error.request) {
+          showSnackbar('Network error. Please check your connection.', 'error');
+        } else {
+          showSnackbar('An error occurred during registration', 'error');
+        }
       } finally {
         setButtonLoading(prev => ({ ...prev, register: false }));
       }
     }
   };
+
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
@@ -192,36 +293,33 @@ const LoginRegisterPage = () => {
     if (Object.keys(errors).length === 0) {
       setButtonLoading(prev => ({ ...prev, login: true }));
       try {
-        const response = await fetch('http://localhost:5000/api/auth/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(loginForm),
+        console.log('Attempting login with:', loginForm);
+
+        const response = await axios.post('http://localhost:5000/api/auth/login', {
+          emailOrUsername: loginForm.emailOrUsername,
+          password: loginForm.password
         });
 
-        const responseData = await response.json();
+        console.log('Login response:', response.data);
 
-        if (!response.ok) {
-          throw new Error(responseData.message || 'Login failed');
+        if (response.data.status === 'success') {
+          showSnackbar('Login successful!', 'success');
+
+          // Use the login function from AuthContext
+          login(response.data.data.user, response.data.token);
+
+          navigate('/home');
+        } else {
+          showSnackbar(response.data.message || 'Login failed', 'error');
         }
-
-        // Properly access the nested user data
-        const userData = responseData.data?.user;
-        const token = responseData.token;
-
-        if (!userData || !token) {
-          throw new Error('Invalid response from server');
-        }
-
-        // Use the login function from AuthContext
-        login(userData, token);
-
-        showSnackbar('Login successful!', 'success');
-        navigate('/home');
       } catch (error) {
-        console.error('Login error:', error);
-        showSnackbar(error.message || 'Login failed', 'error');
+        console.error('Login error details:', error);
+
+        if (error.response && error.response.data) {
+          showSnackbar(error.response.data.message || 'Login failed', 'error');
+        } else {
+          showSnackbar('An error occurred during login', 'error');
+        }
       } finally {
         setButtonLoading(prev => ({ ...prev, login: false }));
       }
@@ -674,6 +772,57 @@ const LoginRegisterPage = () => {
                 </div>
 
                 <RoleSelector />
+
+                {!isLogin && (
+                  <>
+                    {/* Company Selection Field */}
+                    {registerForm.role !== 'admin' ? (
+                      <div>
+                        <label className="block mb-1 text-sm font-medium text-gray-700">
+                          Select Company
+                        </label>
+                        <select
+                          value={registerForm.companyId}
+                          onChange={(e) => handleRegisterChange('companyId', e.target.value)}
+                          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${registerErrors.companyId ? 'border-red-500' : 'border-gray-300'
+                            }`}
+                          disabled={loadingCompanies}
+                        >
+                          <option value="">Select a company</option>
+                          {companies.map(company => (
+                            <option key={company._id} value={company._id}>
+                              {company.name}
+                            </option>
+                          ))}
+                        </select>
+                        {registerErrors.companyId && (
+                          <div className="mt-1 text-xs text-red-500">{registerErrors.companyId}</div>
+                        )}
+                        {loadingCompanies && (
+                          <div className="mt-1 text-xs text-gray-500">Loading companies...</div>
+                        )}
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="block mb-1 text-sm font-medium text-gray-700">
+                          Company Name
+                        </label>
+                        <input
+                          type="text"
+                          value={registerForm.companyName}
+                          onChange={(e) => handleRegisterChange('companyName', e.target.value)}
+                          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${registerErrors.companyName ? 'border-red-500' : 'border-gray-300'
+                            }`}
+                          placeholder="Enter your company name"
+                        />
+                        {registerErrors.companyName && (
+                          <div className="mt-1 text-xs text-red-500">{registerErrors.companyName}</div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+
 
                 <button
                   type="submit"

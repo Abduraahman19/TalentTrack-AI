@@ -56,9 +56,27 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['recruiter', 'admin', 'viewer'],
     default: 'recruiter'
+  },
+  company: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Company',
+    required: true
+  },
+  isActive: {
+    type: Boolean,
+    default: true
   }
 }, {
   timestamps: true
 });
+// Static method to check admin count for a company
+userSchema.statics.getAdminCount = async function(companyId) {
+  return this.countDocuments({ company: companyId, role: 'admin', isActive: true });
+};
+
+// Static method to check recruiter count for a company
+userSchema.statics.getRecruiterCount = async function(companyId) {
+  return this.countDocuments({ company: companyId, role: 'recruiter', isActive: true });
+};
 
 module.exports = mongoose.model('User', userSchema);

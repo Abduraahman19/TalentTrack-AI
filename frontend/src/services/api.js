@@ -108,3 +108,5 @@ export const deleteNoteFromCandidate = (candidateId, noteId) =>
 
 // Get single candidate
 export const getCandidateById = (id) => API.get(`/resumes/${id}`);
+// Add this to your API functions
+export const getCompanies = () => API.get('/companies');

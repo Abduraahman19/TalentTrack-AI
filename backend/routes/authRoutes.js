@@ -12,6 +12,9 @@ router.post('/login', authController.login);
 // GET /api/auth/me
 router.get('/me', authMiddleware.protect, authController.getMe);
 
+// GET /api/auth/companies (for dropdown) - Yeh line add karo
+router.get('/companies', authController.getCompanies);
+
 // POST /api/auth/logout
 router.post('/logout', authMiddleware.protect, authController.logout);
 

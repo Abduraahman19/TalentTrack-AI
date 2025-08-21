@@ -1,3 +1,4 @@
+// controllers/jobDescriptionController.js - Updated
 const JobDescription = require('../models/JobDescription');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -32,6 +33,7 @@ exports.createJobDescription = async (req, res) => {
       });
     }
 
+    // In createJobDescription function, add company:
     const jobData = {
       title,
       description,
@@ -41,7 +43,8 @@ exports.createJobDescription = async (req, res) => {
       salaryRange: salaryRange || { min: 0, max: 0 },
       location,
       employmentType: employmentType || 'Full-time',
-      createdBy: req.user.id
+      createdBy: req.user.id,
+      company: req.user.company // Add company from authenticated user
     };
 
     console.log('Creating job with data:', jobData);
@@ -49,8 +52,8 @@ exports.createJobDescription = async (req, res) => {
     const jobDescription = await JobDescription.create(jobData);
     console.log('Job created successfully:', jobDescription);
 
-    // Recalculate matches (make this non-blocking)
-    calculateMatchesForAllCandidates().catch(err => {
+    // Recalculate matches for candidates in the same company
+    calculateMatchesForAllCandidates(req.user.company).catch(err => {
       console.error('Error calculating matches:', err);
     });
 
@@ -78,11 +81,12 @@ exports.createJobDescription = async (req, res) => {
     });
   }
 };
-// Get all job descriptions
+
+// Get all job descriptions for the user's company
 exports.getJobDescriptions = async (req, res) => {
   try {
     const { search, skill, minExperience, isActive } = req.query;
-    const query = {};
+    const query = { company: req.user.company }; // Filter by company
 
     if (search) {
       query.$text = { $search: search };
@@ -111,13 +115,21 @@ exports.getJobDescriptions = async (req, res) => {
   }
 };
 
-// Update a job description
+// Update a job description (with company check)
 exports.updateJobDescription = async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
 
-    console.log('Updating job:', { id, updates });
+    const existingJob = await JobDescription.findById(id);
+    if (!existingJob) {
+      return res.status(404).json({ message: 'Job description not found' });
+    }
+
+    // ✅ FIX: convert ObjectId to string before comparing
+    if (existingJob.company.toString() !== req.user.company.toString()) {
+      return res.status(403).json({ message: 'Access denied. Job does not belong to your company.' });
+    }
 
     const jobDescription = await JobDescription.findByIdAndUpdate(
       id,
@@ -125,60 +137,54 @@ exports.updateJobDescription = async (req, res) => {
       { new: true, runValidators: true }
     );
 
-    if (!jobDescription) {
-      return res.status(404).json({ message: 'Job description not found' });
-    }
-
-    // Run match calculation in background without awaiting
-    calculateMatchesForAllCandidates().catch(err => {
+    calculateMatchesForAllCandidates(req.user.company).catch(err => {
       console.error('Background match calculation failed:', err);
     });
 
     res.json(jobDescription);
   } catch (err) {
     console.error('Error updating job description:', err);
-    res.status(500).json({
-      message: 'Server error',
-      error: process.env.NODE_ENV === 'development' ? err.message : undefined
-    });
+    res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
 
-// Delete a job description
+// Delete a job description (with company check)
 exports.deleteJobDescription = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // First remove the job
-    const jobDescription = await JobDescription.findByIdAndDelete(id);
-
-    if (!jobDescription) {
+    const existingJob = await JobDescription.findById(id);
+    if (!existingJob) {
       return res.status(404).json({ message: 'Job description not found' });
     }
 
-    // Then remove all references to this job in candidates' roleMatchScores
+    // ✅ FIX here as well
+    if (existingJob.company.toString() !== req.user.company.toString()) {
+      return res.status(403).json({ message: 'Access denied. Job does not belong to your company.' });
+    }
+
+    await JobDescription.findByIdAndDelete(id);
+
     await Candidate.updateMany(
-      { 'roleMatchScores.roleId': id },
+      { 'roleMatchScores.roleId': id, company: req.user.company },
       { $pull: { roleMatchScores: { roleId: id } } }
     );
 
     res.json({ message: 'Job description deleted successfully' });
   } catch (err) {
     console.error('Error deleting job description:', err);
-    res.status(500).json({
-      message: 'Server error',
-      error: process.env.NODE_ENV === 'development' ? err.message : undefined
-    });
+    res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
 
-// Add this helper function to your controller
-async function calculateMatchesForAllCandidates() {
-  try {
-    console.log('Starting to calculate matches for all candidates');
 
-    const jobs = await JobDescription.find({ isActive: true });
-    const candidates = await Candidate.find();
+// Update the helper function to work with company-specific data
+async function calculateMatchesForAllCandidates(company) {
+  try {
+    console.log('Starting to calculate matches for all candidates in company:', company);
+
+    const jobs = await JobDescription.find({ isActive: true, company });
+    const candidates = await Candidate.find({ company });
 
     console.log(`Processing ${candidates.length} candidates against ${jobs.length} jobs`);
 
@@ -202,7 +208,7 @@ async function calculateMatchesForAllCandidates() {
     console.log('Finished calculating matches for all candidates');
   } catch (err) {
     console.error('Error in calculateMatchesForAllCandidates:', err);
-    throw err; // Re-throw the error so it can be handled by the calling function
+    throw err;
   }
 }
 

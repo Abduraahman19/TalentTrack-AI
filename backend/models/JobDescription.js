@@ -30,6 +30,11 @@ const jobDescriptionSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  company: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Company',
+    required: true
+  },
   isActive: {
     type: Boolean,
     default: true
@@ -40,8 +45,11 @@ const jobDescriptionSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
+// Add company index
+jobDescriptionSchema.index({ company: 1 });
 // Index for better search performance
 jobDescriptionSchema.index({ title: 'text', description: 'text', requiredSkills: 'text' });
+jobDescriptionSchema.index({ company: 1 }); // Add company index
 
 // Virtual for candidates count
 jobDescriptionSchema.virtual('candidatesCount', {
@@ -50,8 +58,6 @@ jobDescriptionSchema.virtual('candidatesCount', {
   foreignField: 'roleMatchScores.roleId',
   count: true
 });
-
-module.exports = mongoose.model('JobDescription', jobDescriptionSchema);
 
 // Add this to your JobDescription model (jobDescription.js)
 jobDescriptionSchema.post('remove', async function (doc) {
@@ -65,3 +71,5 @@ jobDescriptionSchema.post('remove', async function (doc) {
     console.error('Error cleaning up role matches:', err);
   }
 });
+
+module.exports = mongoose.model('JobDescription', jobDescriptionSchema);
