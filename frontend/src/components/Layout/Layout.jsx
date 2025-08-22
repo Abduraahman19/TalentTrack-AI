@@ -77,20 +77,6 @@ const Layout = ({ children }) => {
         </div>
 
         <div className="flex flex-col flex-grow px-2 py-4 overflow-y-auto">
-          {/* Company Name Banner - Always visible */}
-          {user.company && (
-            <div className="px-3 py-2 mb-4 rounded-lg bg-blue-50">
-              <div className="flex items-center">
-                <FaBuilding className="flex-shrink-0 w-4 h-4 text-blue-600" />
-                {sidebarOpen && (
-                  <span className="ml-2 text-sm font-medium text-blue-800 truncate">
-                    {user.company.name}
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-
           <nav className="flex-1 space-y-1">
             {navigationItems.map((item) => {
               if (!item.roles.includes(user.role)) return null;
@@ -165,15 +151,6 @@ const Layout = ({ children }) => {
               {location.pathname === '/settings' && 'Settings'}
             </h2>
           </div>
-          
-          {user.company && (
-            <div className="flex items-center px-4 py-2 rounded-full bg-blue-50">
-              <FaBuilding className="w-4 h-4 mr-2 text-blue-600" />
-              <span className="text-sm font-medium text-blue-800">
-                {user.company.name}
-              </span>
-            </div>
-          )}
         </div>
 
         {children}

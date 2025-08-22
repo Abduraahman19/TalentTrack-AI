@@ -284,7 +284,7 @@ const CandidateProfile = () => {
   return (
     <Layout>
       <MobileHeader />
-      <div className='min-h-screen overflow-auto bg-gray-50'>
+      <div className='min-h-screen overflow-auto pb-14 bg-gray-50'>
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
