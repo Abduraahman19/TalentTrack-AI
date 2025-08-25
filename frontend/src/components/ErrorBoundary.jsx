@@ -15,7 +15,7 @@ class ErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="p-4 bg-red-100 text-red-800">
+        <div className="p-4 text-red-800 bg-red-100">
           <h1>Something went wrong.</h1>
           <p>{this.state.error.toString()}</p>
         </div>

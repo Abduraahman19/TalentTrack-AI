@@ -1,12 +1,10 @@
-// controllers/resumeController.js - Fixed
+// controllers/resumeController.js - Updated
 const Candidate = require('../models/Candidate');
 const JobDescription = require('../models/JobDescription');
 const { parsePDF, parseDOCX } = require('../utils/parser');
 const { calculateMatchScore, generateMatchExplanation } = require('../utils/skillMatcher');
 const fs = require('fs');
 const path = require('path');
-const pdf = require('pdf-parse'); // Add this import
-const mammoth = require('mammoth'); // Add this import
 
 exports.uploadResume = async (req, res) => {
   try {
@@ -27,60 +25,24 @@ exports.uploadResume = async (req, res) => {
         return res.status(400).json({ message: 'Unsupported file type' });
       }
 
-      // Enhanced validation with fallbacks
-      if (!parsedData.name || parsedData.name === 'Unknown' || !parsedData.email) {
-        console.log('Basic extraction failed, attempting fallback extraction');
-
-        // Try to extract basic info from text
-        let textContent;
-        if (req.file.mimetype === 'application/pdf') {
-          const pdfData = await pdf(fileBuffer);
-          textContent = pdfData.text;
-        } else {
-          const docxResult = await mammoth.extractRawText({ buffer: fileBuffer });
-          textContent = docxResult.value;
-        }
-
-        const lines = textContent.split('\n').filter(line => line.trim().length > 2);
-
-        // Fallback name extraction (first non-empty line without email)
-        if (!parsedData.name || parsedData.name === 'Unknown') {
-          for (const line of lines) {
-            if (!line.includes('@') && line.trim().length > 3) {
-              parsedData.name = line.trim();
-              break;
-            }
-          }
-        }
-
-        // Fallback email extraction
-        if (!parsedData.email) {
-          const emailMatch = textContent.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/);
-          if (emailMatch) parsedData.email = emailMatch[0];
-        }
-
-        // If still no name, use a placeholder
-        if (!parsedData.name || parsedData.name === 'Unknown') {
-          parsedData.name = 'Candidate';
-        }
+      if (!parsedData.name || !parsedData.email) {
+        throw new Error('Failed to extract required fields from resume');
       }
 
+      // Check for duplicate resume for this company
+      const existingCandidate = await Candidate.checkDuplicate(parsedData.email, req.user.company);
+      if (existingCandidate) {
+        fs.unlinkSync(req.file.path);
+        return res.status(400).json({
+          message: 'This candidate has already been uploaded in your company',
+          candidateId: existingCandidate._id
+        });
+      }
     } catch (parseError) {
-      console.error('Parse error:', parseError);
       if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
       return res.status(400).json({
-        message: 'Error parsing resume. The file may be corrupted or in an unexpected format.',
+        message: 'Error parsing resume',
         error: parseError.message
-      });
-    }
-
-    // Check for duplicate resume for this company
-    const existingCandidate = await Candidate.checkDuplicate(parsedData.email, req.user.company);
-    if (existingCandidate) {
-      fs.unlinkSync(req.file.path);
-      return res.status(400).json({
-        message: 'This candidate has already been uploaded in your company',
-        candidateId: existingCandidate._id
       });
     }
 
@@ -93,7 +55,7 @@ exports.uploadResume = async (req, res) => {
       education: parsedData.education || [],
       resumePath: `/uploads/${req.file.filename}`,
       uploadedBy: req.user.id,
-      company: req.user.company,
+      company: req.user.company, // Add company from authenticated user
       roleMatchScores: []
     };
 
@@ -349,75 +311,6 @@ exports.addNoteToCandidate = async (req, res) => {
   }
 };
 
-// exports.updateCandidateStatus = async (req, res) => {
-//   try {
-//     const { status } = req.body;
-//     const { id } = req.params;
-
-//     if (!status) {
-//       return res.status(400).json({ message: 'Status is required' });
-//     }
-
-//     const candidate = await Candidate.findById(id);
-//     if (!candidate) {
-//       return res.status(404).json({ message: 'Candidate not found' });
-//     }
-
-//     // Check permissions
-//     if (req.user.role === 'viewer') {
-//       return res.status(403).json({ message: 'Viewers cannot update status' });
-//     }
-
-//     if (req.user.role === 'recruiter' && candidate.uploadedBy.toString() !== req.user.id) {
-//       return res.status(403).json({ message: 'You can only update status for candidates you uploaded' });
-//     }
-
-//     candidate.status = status;
-//     await candidate.save();
-
-//     res.json(candidate);
-//   } catch (err) {
-//     res.status(500).json({ error: err.message });
-//   }
-// };
-
-// // Add note to candidate
-// exports.addNoteToCandidate = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const { content } = req.body;
-
-//     if (!content || !content.trim()) {
-//       return res.status(400).json({ message: 'Note content is required' });
-//     }
-
-//     const candidate = await Candidate.findById(id);
-//     if (!candidate) {
-//       return res.status(404).json({ message: 'Candidate not found' });
-//     }
-
-//     // Check permissions
-//     if (req.user.role === 'viewer') {
-//       return res.status(403).json({ message: 'Viewers cannot add notes' });
-//     }
-
-//     if (req.user.role === 'recruiter' && candidate.uploadedBy.toString() !== req.user.id) {
-//       return res.status(403).json({ message: 'You can only add notes to candidates you uploaded' });
-//     }
-
-//     candidate.notes.push({
-//       content: content.trim(),
-//       addedBy: req.user.id
-//     });
-
-//     await candidate.save();
-//     res.json(candidate);
-//   } catch (err) {
-//     res.status(500).json({ error: err.message });
-//   }
-// };
-
-
 // Update note for candidate - Allow recruiters too
 exports.updateNoteForCandidate = async (req, res) => {
   try {
@@ -445,8 +338,8 @@ exports.updateNoteForCandidate = async (req, res) => {
     }
 
     // Check permissions - allow admin, recruiter, or note creator to update
-    if (req.user.role !== 'admin' && req.user.role !== 'recruiter' &&
-      candidate.notes[noteIndex].addedBy.toString() !== req.user.id) {
+    if (req.user.role !== 'admin' && req.user.role !== 'recruiter' && 
+        candidate.notes[noteIndex].addedBy.toString() !== req.user.id) {
       return res.status(403).json({ message: 'You can only update your own notes' });
     }
 
@@ -483,8 +376,8 @@ exports.deleteNoteFromCandidate = async (req, res) => {
     }
 
     // Check permissions - allow admin, recruiter, or note creator to delete
-    if (req.user.role !== 'admin' && req.user.role !== 'recruiter' &&
-      candidate.notes[noteIndex].addedBy.toString() !== req.user.id) {
+    if (req.user.role !== 'admin' && req.user.role !== 'recruiter' && 
+        candidate.notes[noteIndex].addedBy.toString() !== req.user.id) {
       return res.status(403).json({ message: 'You can only delete your own notes' });
     }
 
@@ -523,8 +416,8 @@ exports.removeTagFromCandidate = async (req, res) => {
     }
 
     // Allow removal if user is admin, recruiter, or added the tag
-    if (req.user.role !== 'admin' && req.user.role !== 'recruiter' &&
-      candidate.tags[tagIndex].addedBy.toString() !== req.user.id) {
+    if (req.user.role !== 'admin' && req.user.role !== 'recruiter' && 
+        candidate.tags[tagIndex].addedBy.toString() !== req.user.id) {
       return res.status(403).json({ message: 'You can only remove tags you added' });
     }
 

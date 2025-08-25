@@ -17,30 +17,7 @@ const ResumeUpload = ({ onUploadSuccess }) => {
   const { showSnackbar } = useSnackbar();
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
-  const [uploadError, setUploadError] = useState('');
 
-  const handleUpload = async (formData) => {
-  try {
-    setUploadError('');
-    const response = await uploadResume(formData, user.token);
-    
-    if (response.error) {
-      // Handle specific error types
-      if (response.error.includes('corrupted')) {
-        setUploadError('The resume file appears to be corrupted. Please try another file.');
-      } else if (response.error.includes('format')) {
-        setUploadError('Unsupported file format. Please upload PDF or DOCX files.');
-      } else {
-        setUploadError(response.error);
-      }
-    } else {
-      // Success handling
-      showSnackbar('Resume processed successfully!', 'success');
-    }
-  } catch (error) {
-    setUploadError('Upload failed. Please try again.');
-  }
-};
   // Fetch recent candidates on component mount
   useEffect(() => {
     const fetchRecentCandidates = async () => {

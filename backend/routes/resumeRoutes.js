@@ -3,7 +3,6 @@ const router = express.Router();
 const auth = require('../middleware/authMiddleware');
 const upload = require('../middleware/upload');
 const resumeController = require('../controllers/resumeController');
-const { validateResumeFile } = require('../middleware/fileValidation');
 
 // Only allow admin and recruiter roles to upload
 const allowedRoles = auth.authorize('admin', 'recruiter');
@@ -13,7 +12,6 @@ router.post(
   auth.protect,
   allowedRoles,
   upload.single('resume'),
-  validateResumeFile, // Add this line
   resumeController.uploadResume
 );
 

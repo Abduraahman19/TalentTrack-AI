@@ -219,7 +219,7 @@ const CandidateSearch = ({ token }) => {
   return (
     <Layout>
       <MobileHeader />
-      <div className="min-h-screen pb-10 overflow-auto bg-gray-50">   {/* 👈 Ye pura page ka background karega */}
+      <div className="overflow-auto bg-gray-50">   {/* 👈 Ye pura page ka background karega */}
         <div className='pt-8 pl-10'>
           <h1 className='text-3xl font-bold'>Candidates</h1>
         </div>

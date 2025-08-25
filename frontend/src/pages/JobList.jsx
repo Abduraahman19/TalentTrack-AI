@@ -106,7 +106,7 @@ const JobList = () => {
   return (
     <Layout>
       <MobileHeader />
-      <div className="min-h-screen overflow-auto pb-14 bg-gray-50">
+      <div className="overflow-auto bg-gray-50">
         <div className='pt-8 pl-10'>
           <h1 className='text-3xl font-bold'>Jobs</h1>
         </div>
