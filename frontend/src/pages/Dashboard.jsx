@@ -15,6 +15,7 @@ import {
   FiBriefcase,
   FiXCircle,
 } from "react-icons/fi";
+import { Link } from "react-router-dom";
 
 const Dashboard = () => {
   const { user } = useContext(AuthContext);
@@ -201,6 +202,9 @@ const Dashboard = () => {
         >
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-semibold text-gray-800">Recent Candidates</h3>
+            <Link to="/candidates">
+            <button className="font-bold text-sky-600 hover:text-sky-700 hover:underline">View All Candidates</button>
+          </Link>
           </div>
           <div className="space-y-4">
             <CandidateList key={refreshKey} limit={3} />

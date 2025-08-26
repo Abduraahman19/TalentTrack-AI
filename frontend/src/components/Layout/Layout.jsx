@@ -1,6 +1,6 @@
 // src/components/Layout/Layout.jsx
 import { useState, useContext } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
 import { motion } from "framer-motion";
 import {
@@ -63,10 +63,14 @@ const Layout = ({ children }) => {
         <div className="flex items-center justify-between h-16 px-4 bg-gradient-to-r from-blue-600 to-indigo-600">
           {sidebarOpen ? (
             <div className="flex items-center">
-              <h1 className="text-xl font-bold text-white">TalentTrack AI</h1>
+              <Link to="/home">
+                <button className="text-xl font-bold text-white">TalentTrack AI</button>
+              </Link>
             </div>
           ) : (
-            <h1 className="text-xl font-bold text-white">TT</h1>
+            <Link to="/home">
+              <button className="text-xl font-bold text-white">TT</button>
+            </Link>
           )}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -88,8 +92,8 @@ const Layout = ({ children }) => {
                   whileTap={{ scale: 0.98 }}
                   onClick={() => navigateTo(item.path)}
                   className={`flex items-center px-3 py-3 text-sm font-medium rounded-lg w-full ${isActive(item.path)
-                      ? 'bg-blue-100 text-blue-600 shadow-inner'
-                      : 'text-gray-600 hover:bg-gray-100'
+                    ? 'bg-blue-100 text-blue-600 shadow-inner'
+                    : 'text-gray-600 hover:bg-gray-100'
                     }`}
                 >
                   <item.icon className="flex-shrink-0" />

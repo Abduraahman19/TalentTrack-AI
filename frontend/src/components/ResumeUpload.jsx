@@ -4,6 +4,7 @@ import { uploadResume, getCandidates } from '../services/api';
 import { AuthContext } from '../context/AuthContext';
 import { useSnackbar } from '../context/SnackbarContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { FiUpload, FiX, FiCheck, FiLoader, FiUsers } from 'react-icons/fi';
 
 const ResumeUpload = ({ onUploadSuccess }) => {
@@ -371,6 +372,11 @@ const ResumeUpload = ({ onUploadSuccess }) => {
                       )}
                     </motion.li>
                   ))}
+                  <div className='items-center justify-center text-center'>
+                    <Link to="/candidates">
+                    <button className='font-bold text-sky-600 hover:text-sky-700 hover:underline'>View All Candidates</button>
+                  </Link>
+                  </div>
                 </ul>
               ) : (
                 <div className="py-6 text-center text-gray-500">
