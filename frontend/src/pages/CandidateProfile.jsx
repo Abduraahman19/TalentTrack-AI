@@ -1,11 +1,12 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiDownload, FiMail, FiPhone, FiBriefcase, FiAward,
   FiUser, FiTag, FiEdit, FiSave, FiChevronLeft, FiX,
   FiTrash2, FiXCircle, FiMessageSquare, FiPlus, FiMinus,
-  FiCalendar, FiMapPin, FiGlobe, FiLinkedin, FiGithub
+  FiCalendar, FiMapPin, FiGlobe, FiLinkedin, FiGithub,
+  FiLoader, FiCheckCircle, FiAlertCircle
 } from 'react-icons/fi';
 import { useSnackbar } from '../context/SnackbarContext';
 import {
@@ -87,6 +88,8 @@ const CandidateProfile = () => {
   const [showNotes, setShowNotes] = useState(false);
   const [editingNoteId, setEditingNoteId] = useState(null);
   const [editingNoteContent, setEditingNoteContent] = useState('');
+  const [downloadState, setDownloadState] = useState(null);
+  const [fileCache, setFileCache] = useState({});
   const [expandedSections, setExpandedSections] = useState({
     tags: true,
     notes: false,
@@ -113,6 +116,140 @@ const CandidateProfile = () => {
 
     fetchCandidate();
   }, [id]);
+
+  // Advanced file download with caching and state management
+  const handleAdvancedDownload = useCallback(async () => {
+    const fileName = `${candidate.name.replace(/\s+/g, '_')}_Resume`;
+    
+    if (!candidate.resumePath) {
+      setDownloadState({ 
+        status: 'error', 
+        progress: 0, 
+        message: 'No resume available for this candidate' 
+      });
+      
+      setTimeout(() => {
+        setDownloadState(null);
+      }, 3000);
+      return;
+    }
+    
+    try {
+      // Set loading state
+      setDownloadState({ status: 'fetching', progress: 0, message: 'Fetching resume...' });
+
+      // Check if file is already cached in memory
+      let fileBlob;
+      if (fileCache[id]) {
+        fileBlob = fileCache[id];
+        setDownloadState({ status: 'processing', progress: 50, message: 'Retrieved from cache...' });
+      } else {
+        // Check localStorage first
+        const storageKey = `resume_${id}`;
+        const storedResume = localStorage.getItem(storageKey);
+        
+        if (storedResume) {
+          // Convert base64 back to blob
+          const response = await fetch(storedResume);
+          fileBlob = await response.blob();
+          
+          // Cache in memory too
+          setFileCache(prev => ({
+            ...prev,
+            [id]: fileBlob
+          }));
+          
+          setDownloadState({ status: 'processing', progress: 40, message: 'Retrieved from storage...' });
+        } else {
+          // Fetch the file from server
+          const response = await fetch(candidate.resumePath, {
+            headers: {
+              'Authorization': `Bearer ${user?.token}`,
+              'Accept': 'application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,*/*'
+            }
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to fetch resume: ${response.statusText}`);
+          }
+
+          fileBlob = await response.blob();
+          
+          setDownloadState({ status: 'processing', progress: 30, message: 'File fetched successfully...' });
+          
+          // Convert blob to base64 for localStorage storage
+          const reader = new FileReader();
+          const base64Promise = new Promise((resolve, reject) => {
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+          });
+          
+          reader.readAsDataURL(fileBlob);
+          const base64Data = await base64Promise;
+          
+          // Store in localStorage
+          localStorage.setItem(storageKey, base64Data);
+          
+          // Cache in memory
+          setFileCache(prev => ({
+            ...prev,
+            [id]: fileBlob
+          }));
+        }
+      }
+
+      setDownloadState({ status: 'converting', progress: 70, message: 'Processing file format...' });
+
+      // Determine file type and set appropriate extension
+      const fileType = fileBlob.type;
+      let finalFileName = fileName;
+      
+      if (fileType === 'application/pdf') {
+        finalFileName = `${fileName}.pdf`;
+      } else if (fileType.includes('word') || fileType.includes('document')) {
+        finalFileName = `${fileName}.doc`;
+      } else {
+        finalFileName = `${fileName}.pdf`;
+      }
+
+      setDownloadState({ status: 'downloading', progress: 90, message: 'Preparing download...' });
+
+      // Create download link and trigger download
+      const downloadUrl = URL.createObjectURL(fileBlob);
+      const downloadLink = document.createElement('a');
+      downloadLink.href = downloadUrl;
+      downloadLink.download = finalFileName;
+      downloadLink.style.display = 'none';
+      
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+      
+      // Clean up object URL
+      setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+
+      // Success state
+      setDownloadState({ status: 'success', progress: 100, message: 'Download completed!' });
+
+      // Clear success state after 3 seconds
+      setTimeout(() => {
+        setDownloadState(null);
+      }, 3000);
+
+    } catch (error) {
+      console.error('Download error:', error);
+      setDownloadState({ 
+        status: 'error', 
+        progress: 0, 
+        message: error.message || 'Download failed' 
+      });
+
+      // Clear error state after 5 seconds
+      setTimeout(() => {
+        setDownloadState(null);
+      }, 5000);
+    }
+  }, [candidate, user?.token, fileCache, id]);
 
   const toggleSection = (section) => {
     setExpandedSections(prev => ({
@@ -230,6 +367,84 @@ const CandidateProfile = () => {
     if (score >= 60) return 'bg-amber-50 border-amber-100';
     if (score >= 40) return 'bg-orange-50 border-orange-100';
     return 'bg-red-50 border-red-100';
+  };
+
+  const renderDownloadButton = () => {
+    if (!downloadState) {
+      return (
+        <button
+          onClick={handleAdvancedDownload}
+          className="flex items-center justify-center w-full px-4 py-3 text-white transition-all duration-200 transform bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700 hover:shadow-md hover:scale-105"
+        >
+          <FiDownload className="mr-2" />
+          Download Resume/CV
+        </button>
+      );
+    }
+
+    const getButtonStyle = () => {
+      switch (downloadState.status) {
+        case 'fetching':
+        case 'processing':
+        case 'converting':
+        case 'downloading':
+          return 'bg-indigo-600 cursor-not-allowed';
+        case 'success':
+          return 'bg-green-600 cursor-default';
+        case 'error':
+          return 'bg-red-600 cursor-pointer hover:bg-red-700';
+        default:
+          return 'bg-blue-600';
+      }
+    };
+
+    const getIcon = () => {
+      switch (downloadState.status) {
+        case 'fetching':
+        case 'processing':
+        case 'converting':
+        case 'downloading':
+          return <FiLoader className="mr-2 animate-spin" />;
+        case 'success':
+          return <FiCheckCircle className="mr-2" />;
+        case 'error':
+          return <FiAlertCircle className="mr-2" />;
+        default:
+          return <FiDownload className="mr-2" />;
+      }
+    };
+
+    return (
+      <div className="space-y-3">
+        <button
+          onClick={downloadState.status === 'error' ? handleAdvancedDownload : undefined}
+          disabled={['fetching', 'processing', 'converting', 'downloading', 'success'].includes(downloadState.status)}
+          className={`flex items-center justify-center w-full px-4 py-3 text-white rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 ${getButtonStyle()}`}
+        >
+          {getIcon()}
+          {downloadState.status === 'error' ? 'Retry Download' : 
+           downloadState.status === 'success' ? 'Downloaded!' : 
+           'Processing...'}
+        </button>
+        
+        {downloadState.progress > 0 && (
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm text-gray-600">
+              <span>{downloadState.message}</span>
+              <span>{downloadState.progress}%</span>
+            </div>
+            <div className="w-full h-2 overflow-hidden bg-gray-200 rounded-full">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${downloadState.progress}%` }}
+                transition={{ duration: 0.5 }}
+                className="h-2 bg-blue-600 rounded-full"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   if (loading) {
@@ -381,16 +596,11 @@ const CandidateProfile = () => {
                       </div>
                     )}
                   </div>
+                  
+                  {/* Advanced Download Section */}
                   {candidate.resumePath && (
                     <div className="mt-6">
-                      <a
-                        href={`http://localhost:5000${candidate.resumePath}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-center w-full px-4 py-3 text-white transition-all duration-200 bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700 hover:shadow-md"                                  >
-                        <FiDownload className="mr-2" />
-                        Download Resume
-                      </a>
+                      {renderDownloadButton()}
                     </div>
                   )}
                 </div>
@@ -916,3 +1126,4 @@ const CandidateProfile = () => {
 };
 
 export default CandidateProfile;
+

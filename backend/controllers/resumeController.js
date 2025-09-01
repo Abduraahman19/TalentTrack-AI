@@ -1,48 +1,93 @@
-// controllers/resumeController.js - Updated
 const Candidate = require('../models/Candidate');
 const JobDescription = require('../models/JobDescription');
 const { parsePDF, parseDOCX } = require('../utils/parser');
 const { calculateMatchScore, generateMatchExplanation } = require('../utils/skillMatcher');
-const fs = require('fs');
-const path = require('path');
+const { cloudinary } = require('../config/cloudinary'); // Import cloudinary
 
 exports.uploadResume = async (req, res) => {
   try {
+    console.log('Upload request received:', req.file);
+    
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
     let parsedData;
     try {
-      const fileBuffer = fs.readFileSync(req.file.path);
+      // Use Cloudinary SDK to download the file instead of axios
+      console.log('Downloading file from Cloudinary using SDK:', req.file.path);
+      
+      // Extract public ID from Cloudinary URL
+      const urlParts = req.file.path.split('/');
+      const publicIdWithExtension = urlParts[urlParts.length - 1];
+      const publicId = publicIdWithExtension.split('.')[0];
+      const fullPublicId = `resume-uploads/${publicId}`;
 
-      if (req.file.mimetype === 'application/pdf') {
+      // Download file using Cloudinary SDK
+      const result = await cloudinary.api.resource(fullPublicId, {
+        resource_type: 'raw',
+        type: 'upload'
+      });
+
+      if (!result.secure_url) {
+        throw new Error('Failed to get secure URL from Cloudinary');
+      }
+
+      // Now download using the secure URL (this should work without authentication issues)
+      const response = await fetch(result.secure_url);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      const fileBuffer = Buffer.from(arrayBuffer);
+      
+      console.log('File downloaded successfully, size:', fileBuffer.length, 'bytes');
+
+      // Determine file type and parse accordingly
+      if (req.file.mimetype === 'application/pdf' || req.file.originalname.toLowerCase().endsWith('.pdf')) {
+        console.log('Parsing PDF file');
         parsedData = await parsePDF(fileBuffer);
-      } else if (req.file.mimetype.includes('wordprocessingml.document')) {
+      } else if (req.file.mimetype.includes('wordprocessingml.document') || 
+                 req.file.originalname.toLowerCase().endsWith('.docx') ||
+                 req.file.originalname.toLowerCase().endsWith('.doc')) {
+        console.log('Parsing DOCX file');
         parsedData = await parseDOCX(fileBuffer);
       } else {
-        fs.unlinkSync(req.file.path);
-        return res.status(400).json({ message: 'Unsupported file type' });
+        console.log('Unsupported file type:', req.file.mimetype, req.file.originalname);
+        return res.status(400).json({ message: 'Unsupported file type. Please upload PDF or DOCX files only.' });
       }
 
       if (!parsedData.name || !parsedData.email) {
-        throw new Error('Failed to extract required fields from resume');
+        console.log('Failed to extract name or email from resume');
+        throw new Error('Failed to extract required fields (name and email) from resume');
       }
 
+      console.log('Resume parsed successfully:', {
+        name: parsedData.name,
+        email: parsedData.email,
+        skillsCount: parsedData.skills?.length || 0
+      });
+
       // Check for duplicate resume for this company
-      const existingCandidate = await Candidate.checkDuplicate(parsedData.email, req.user.company);
+      const existingCandidate = await Candidate.findOne({ 
+        email: parsedData.email, 
+        company: req.user.company 
+      });
+      
       if (existingCandidate) {
-        fs.unlinkSync(req.file.path);
+        console.log('Duplicate candidate found:', parsedData.email);
         return res.status(400).json({
           message: 'This candidate has already been uploaded in your company',
           candidateId: existingCandidate._id
         });
       }
     } catch (parseError) {
-      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      console.error('Error parsing resume:', parseError);
       return res.status(400).json({
-        message: 'Error parsing resume',
-        error: parseError.message
+        message: 'Error parsing resume. The file may be corrupted or in an unsupported format.',
+        error: process.env.NODE_ENV === 'development' ? parseError.message : undefined
       });
     }
 
@@ -53,39 +98,87 @@ exports.uploadResume = async (req, res) => {
       skills: parsedData.skills || [],
       experience: parsedData.experience || [],
       education: parsedData.education || [],
-      resumePath: `/uploads/${req.file.filename}`,
+      resumePath: req.file.path, // Cloudinary URL
       uploadedBy: req.user.id,
-      company: req.user.company, // Add company from authenticated user
+      company: req.user.company,
       roleMatchScores: []
     };
 
     // Calculate match scores for all job descriptions in the same company
-    const jobs = await JobDescription.find({ company: req.user.company });
-    for (const job of jobs) {
-      const score = await calculateMatchScore(candidateData.skills, job.requiredSkills);
-      const explanation = await generateMatchExplanation(candidateData.skills, job.requiredSkills);
+    try {
+      const jobs = await JobDescription.find({ company: req.user.company });
+      console.log('Found', jobs.length, 'jobs to match against');
+      
+      for (const job of jobs) {
+        const score = await calculateMatchScore(candidateData.skills, job.requiredSkills);
+        const explanation = await generateMatchExplanation(candidateData.skills, job.requiredSkills);
 
-      candidateData.roleMatchScores.push({
-        roleId: job._id,
-        score,
-        explanation
-      });
+        candidateData.roleMatchScores.push({
+          roleId: job._id,
+          score,
+          explanation
+        });
+      }
+    } catch (matchError) {
+      console.error('Error calculating match scores:', matchError);
+      // Continue without match scores rather than failing the entire upload
     }
 
     const candidate = new Candidate(candidateData);
     await candidate.save();
 
-    return res.status(201).json(candidate);
+    console.log('Candidate saved successfully with ID:', candidate._id);
+    
+    return res.status(201).json({
+      success: true,
+      message: 'Resume uploaded and parsed successfully',
+      candidate
+    });
 
   } catch (dbError) {
     console.error('Database save error:', dbError);
-    if (req.file?.path && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
-    }
     return res.status(500).json({
-      message: 'Error saving candidate data',
-      error: dbError.message,
-      stack: process.env.NODE_ENV === 'development' ? dbError.stack : undefined
+      message: 'Error saving candidate data to database',
+      error: process.env.NODE_ENV === 'development' ? dbError.message : undefined
+    });
+  }
+};
+
+// Delete candidate and remove file from Cloudinary
+exports.deleteCandidate = async (req, res) => {
+  try {
+    const candidate = await Candidate.findById(req.params.id);
+    
+    if (!candidate) {
+      return res.status(404).json({ message: 'Candidate not found' });
+    }
+
+    // Check if candidate belongs to the user's company
+    if (candidate.company.toString() !== req.user.company.toString()) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    // Extract public ID from Cloudinary URL
+    const urlParts = candidate.resumePath.split('/');
+    const publicIdWithExtension = urlParts[urlParts.length - 1];
+    const publicId = publicIdWithExtension.split('.')[0];
+    const folder = 'resume-uploads';
+    const fullPublicId = `${folder}/${publicId}`;
+
+    // Delete from Cloudinary
+    await cloudinary.uploader.destroy(fullPublicId, {
+      resource_type: 'raw'
+    });
+
+    // Delete from database
+    await Candidate.findByIdAndDelete(req.params.id);
+
+    res.json({ message: 'Candidate deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting candidate:', err);
+    res.status(500).json({ 
+      error: err.message,
+      message: 'Failed to delete candidate' 
     });
   }
 };

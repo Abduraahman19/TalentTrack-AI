@@ -53,14 +53,14 @@ function App() {
           </ProtectedRoute>
         }
       />
-      {/* <Route
+      <Route
         path="/settings"
         element={
           <ProtectedRoute>
             <Settings />
           </ProtectedRoute>
         }
-      /> */}
+      />
     </Routes>
   );
 }

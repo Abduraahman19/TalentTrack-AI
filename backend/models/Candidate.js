@@ -1,4 +1,3 @@
-// models/Candidate.js - Updated
 const mongoose = require('mongoose');
 
 const candidateSchema = new mongoose.Schema({
@@ -33,7 +32,8 @@ const candidateSchema = new mongoose.Schema({
     required: true
   },
   company: {
-    type: String,
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Company',
     required: true
   },
   roleMatchScores: [{
@@ -55,22 +55,16 @@ const candidateSchema = new mongoose.Schema({
     type: String,
     enum: ['new', 'shortlisted', 'interviewed', 'hired', 'rejected'],
     default: 'new'
-  },
-  company: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Company',
-    required: true
-  },
+  }
 }, { timestamps: true });
 
-// Indexes for better performance
+// Define indexes only once (remove any duplicate index definitions)
 candidateSchema.index({ company: 1 });
 candidateSchema.index({ email: 1 });
-candidateSchema.index({ 'skills': 1 });
+candidateSchema.index({ skills: 1 });
 candidateSchema.index({ 'roleMatchScores.score': -1 });
 candidateSchema.index({ uploadedBy: 1 });
 candidateSchema.index({ status: 1 });
-candidateSchema.index({ company: 1 }); // Add company index
 
 // Prevent duplicate resume uploads for the same company
 candidateSchema.statics.checkDuplicate = async function (email, company) {

@@ -89,53 +89,64 @@ const ResumeUpload = ({ onUploadSuccess }) => {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!file) {
-      setError('Please select a file');
-      return;
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  if (!file) {
+    setError('Please select a file');
+    return;
+  }
+
+  setLoading(true);
+  setError('');
+
+  try {
+    const formData = new FormData();
+    formData.append('resume', file);
+
+    console.log('Submitting form with file:', file.name);
+
+    // Remove the token parameter since interceptor handles it
+    const response = await uploadResume(formData);
+
+    if (response.error) {
+      throw new Error(response.error);
     }
 
-    setLoading(true);
-    setError('');
+    showSnackbar('Resume processed successfully!', 'success');
 
+    // Refresh recent candidates after successful upload
     try {
-      const formData = new FormData();
-      formData.append('resume', file);
-
-      const response = await uploadResume(formData, user.token);
-
-      if (response.error) {
-        throw new Error(response.error);
-      }
-
-      showSnackbar('Resume processed successfully!', 'success');
-
-      // Refresh recent candidates after successful upload
       const updatedCandidates = await getCandidates({ limit: 3 });
       if (updatedCandidates.data) {
         setRecentCandidates(updatedCandidates.data);
       }
-
-      if (onUploadSuccess) onUploadSuccess(response.data);
-
-    } catch (err) {
-      let errorMsg = 'Upload failed';
-
-      if (err.message.includes('parsing')) {
-        errorMsg = 'The resume format is not supported or is corrupted. Try a different file.';
-      } else if (err.message.includes('candidate data')) {
-        errorMsg = 'We couldn\'t extract enough information from this resume. Please check the content.';
-      } else if (err.response?.data?.message) {
-        errorMsg = err.response.data.message;
-      }
-
-      setError(errorMsg);
-      showSnackbar(errorMsg, 'error');
-    } finally {
-      setLoading(false);
+    } catch (fetchError) {
+      console.error('Error fetching updated candidates:', fetchError);
     }
-  };
+
+    if (onUploadSuccess) onUploadSuccess(response.data);
+
+  } catch (err) {
+    console.error('Upload error details:', err);
+    
+    let errorMsg = 'Upload failed. Please try again.';
+
+    if (err.message.includes('parsing') || err.message.includes('format') || err.message.includes('corrupted')) {
+      errorMsg = 'The resume format is not supported or is corrupted. Try a different file.';
+    } else if (err.message.includes('candidate data') || err.message.includes('extract')) {
+      errorMsg = 'We couldn\'t extract enough information from this resume. Please check the content.';
+    } else if (err.response?.data?.message) {
+      errorMsg = err.response.data.message;
+    } else if (err.message) {
+      errorMsg = err.message;
+    }
+
+    setError(errorMsg);
+    showSnackbar(errorMsg, 'error');
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <motion.div

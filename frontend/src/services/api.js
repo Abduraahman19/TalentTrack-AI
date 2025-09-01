@@ -20,11 +20,8 @@ API.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Only handle unauthorized if it's not a token refresh endpoint
-      if (!error.config.url.includes('/auth/refresh')) {
-        localStorage.removeItem('token');
-        window.location.href = '/';
-      }
+      localStorage.removeItem('token');
+      window.location.href = '/';
     }
     return Promise.reject(error);
   }
@@ -35,14 +32,14 @@ export const login = (credentials) => API.post('/auth/login', credentials);
 export const getMe = () => API.get('/auth/me');
 export const logout = () => API.post('/auth/logout');
 
-export const uploadResume = (formData, token) => {
-  console.log(formData)
+export const uploadResume = (formData) => {
+  console.log('Uploading file:', formData);
   return API.post('/resumes/upload', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
-      Authorization: `Bearer ${token}`
     }
   }).catch(error => {
+    console.error('Upload error:', error);
     if (error.response) {
       throw new Error(error.response.data.message || 'Upload failed');
     } else {
