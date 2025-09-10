@@ -1,3 +1,4 @@
+
 // src/pages/Dashboard.jsx (updated)
 import { useContext, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";

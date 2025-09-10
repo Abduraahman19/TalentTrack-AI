@@ -1,3 +1,4 @@
+
 // middleware/authMiddleware.js - Updated
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');

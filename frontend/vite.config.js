@@ -3,13 +3,8 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  server: {
-    proxy: {
-      '/api': {
-        target: 'http://localhost:5000',
-        changeOrigin: true,
-        secure: false,
-      },
-    },
-  },
+  base: '/', // refresh par sahi routing ke liye
+  define: {
+    'process.env': {} // vite env variables ko handle karega, error nahi aayega
+  }
 });

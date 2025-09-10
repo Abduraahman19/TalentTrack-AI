@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useContext, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -1126,4 +1127,3 @@ const CandidateProfile = () => {
 };
 
 export default CandidateProfile;
-

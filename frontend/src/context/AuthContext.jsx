@@ -1,3 +1,4 @@
+
 // context/AuthContext.js - Updated
 import { createContext, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -19,7 +20,7 @@ export const AuthProvider = ({ children }) => {
         return;
       }
 
-      const response = await axios.get('http://localhost:5000/api/auth/me', {
+      const response = await axios.get('https://talent-track-ai-backend.vercel.app/api/auth/me', {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -51,7 +52,7 @@ export const AuthProvider = ({ children }) => {
 
     // Fetch complete user data with company details
     try {
-      const response = await axios.get('http://localhost:5000/api/auth/me', {
+      const response = await axios.get('https://talent-track-ai-backend.vercel.app/api/auth/me', {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -70,7 +71,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = useCallback(async () => {
     try {
-      await axios.post('http://localhost:5000/api/auth/logout', {}, {
+      await axios.post('https://talent-track-ai-backend.vercel.app/api/auth/logout', {}, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
     } finally {

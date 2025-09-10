@@ -1,3 +1,4 @@
+
 const Candidate = require('../models/Candidate');
 const JobDescription = require('../models/JobDescription');
 const { parsePDF, parseDOCX } = require('../utils/parser');

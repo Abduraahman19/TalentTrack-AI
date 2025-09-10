@@ -85,7 +85,7 @@ const LoginRegisterPage = () => {
   const fetchCompanies = async () => {
     try {
       setLoadingCompanies(true);
-      const response = await axios.get('http://localhost:5000/api/companies'); // Correct endpoint
+      const response = await axios.get('https://talent-track-ai-backend.vercel.app/api/companies'); // Correct endpoint
 
       if (response.data && response.data.data && response.data.data.companies) {
         setCompanies(response.data.data.companies);
@@ -224,7 +224,7 @@ const LoginRegisterPage = () => {
           companyName: registerForm.role === 'admin' ? registerForm.companyName : undefined
         });
 
-        const response = await axios.post('http://localhost:5000/api/auth/register', {
+        const response = await axios.post('https://talent-track-ai-backend.vercel.app/api/auth/register', {
           firstName: registerForm.firstName,
           lastName: registerForm.lastName,
           username: registerForm.username,
@@ -295,7 +295,7 @@ const LoginRegisterPage = () => {
       try {
         console.log('Attempting login with:', loginForm);
 
-        const response = await axios.post('http://localhost:5000/api/auth/login', {
+        const response = await axios.post('https://talent-track-ai-backend.vercel.app/api/auth/login', {
           emailOrUsername: loginForm.emailOrUsername,
           password: loginForm.password
         });

@@ -1,3 +1,4 @@
+
 // controllers/jobDescriptionController.js - Updated
 const JobDescription = require('../models/JobDescription');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
