@@ -1,4 +1,5 @@
 
+
 const Company = require('../models/Company');
 
 // Get all companies for dropdown
